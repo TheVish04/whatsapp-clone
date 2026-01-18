@@ -46,6 +46,10 @@ const sound = document.getElementById('msg-sound');
 // Image Elements
 const imageInput = document.getElementById('image-input');
 const attachBtn = document.getElementById('attach-btn');
+// Modal Elements
+const modal = document.getElementById('image-modal');
+const modalImg = document.getElementById('modal-img');
+const closeModal = document.getElementById('close-modal');
 
 // --- EVENT LISTENERS ---
 
@@ -60,6 +64,24 @@ messageInput.addEventListener('input', handleTyping);
 // Image Events
 attachBtn.addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', handleImageSelect);
+
+// Modal Events
+chatContainer.addEventListener('click', (e) => {
+    if (e.target.classList.contains('msg-image')) {
+        modal.classList.remove('hidden');
+        modalImg.src = e.target.src;
+    }
+});
+
+closeModal.addEventListener('click', () => {
+    modal.classList.add('hidden');
+});
+
+modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+        modal.classList.add('hidden');
+    }
+});
 
 // --- FUNCTIONS ---
 
