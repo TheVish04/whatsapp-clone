@@ -36,13 +36,24 @@
                 <div class="user-details">
                     <h3 id="chat-with-name">User</h3>
                     <span id="typing-indicator"></span>
+                    <span id="last-seen"></span>
                 </div>
             </div>
-            <button id="logout-btn">Exit</button>
+            <div id="logout-btn">Exit</div>
         </div>
 
+        <!-- CHAT AREA -->
         <div class="chat-container" id="chat-container">
             <!-- Messages will be injected here -->
+        </div>
+
+        <!-- INPUT AREA -->
+        <div id="reply-preview" class="hidden">
+            <div class="reply-content">
+                <span id="reply-sender"></span>
+                <p id="reply-text"></p>
+            </div>
+            <span id="close-reply">&times;</span>
         </div>
 
         <div class="chat-input-area">

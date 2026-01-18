@@ -25,6 +25,7 @@ const PIN_CODE = "14082004"; // Hardcoded PIN
 let currentUser = null;
 let chatPartner = null;
 let currentChatRef = null;
+let replyingTo = null; // Object { id, text, sender }
 
 // --- DOM ELEMENTS ---
 // Login
@@ -38,6 +39,7 @@ const loginError = document.getElementById('login-error');
 const chatScreen = document.getElementById('chat-screen');
 const chatHeaderName = document.getElementById('chat-with-name');
 const typingIndicator = document.getElementById('typing-indicator');
+const lastSeenEl = document.getElementById('last-seen');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
@@ -50,6 +52,11 @@ const attachBtn = document.getElementById('attach-btn');
 const modal = document.getElementById('image-modal');
 const modalImg = document.getElementById('modal-img');
 const closeModal = document.getElementById('close-modal');
+// Reply Elements
+const replyPreview = document.getElementById('reply-preview');
+const replySender = document.getElementById('reply-sender');
+const replyText = document.getElementById('reply-text');
+const closeReply = document.getElementById('close-reply');
 
 // --- EVENT LISTENERS ---
 
@@ -83,6 +90,8 @@ modal.addEventListener('click', (e) => {
     }
 });
 
+closeReply.addEventListener('click', cancelReply);
+
 // --- FUNCTIONS ---
 
 function handleLogin() {
@@ -111,6 +120,7 @@ function handleLogin() {
     chatHeaderName.textContent = chatPartner.charAt(0).toUpperCase() + chatPartner.slice(1);
 
     initializeChat();
+    initializePresence();
 }
 
 function showError(msg) {
@@ -156,6 +166,47 @@ function initializeChat() {
             typingIndicator.textContent = "";
         }
     });
+
+    // 4. Presence Listener
+    db.ref(`status/${chatPartner}`).on('value', (snapshot) => {
+        const status = snapshot.val();
+        if (!status) return;
+
+        if (status.online) {
+            lastSeenEl.textContent = "Online";
+        } else if (status.lastOnline) {
+            const date = new Date(status.lastOnline);
+            // Simple formatting: Today at HH:MM
+            lastSeenEl.textContent = `Last seen at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        } else {
+            lastSeenEl.textContent = "";
+        }
+    });
+}
+
+function initializePresence() {
+    const userStatusDatabaseRef = db.ref(`status/${currentUser}`);
+
+    // Offline / Online Logic
+    const isOfflineForDatabase = {
+        online: false,
+        lastOnline: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    const isOnlineForDatabase = {
+        online: true,
+        lastOnline: firebase.database.ServerValue.TIMESTAMP
+    };
+
+    db.ref('.info/connected').on('value', (snapshot) => {
+        if (snapshot.val() === false) {
+            return;
+        }
+
+        userStatusDatabaseRef.onDisconnect().update(isOfflineForDatabase).then(() => {
+            userStatusDatabaseRef.update(isOnlineForDatabase);
+        });
+    });
 }
 
 function sendMessage() {
@@ -167,11 +218,13 @@ function sendMessage() {
         receiver: chatPartner,
         text: text,
         timestamp: Date.now(),
-        seen: false
+        seen: false,
+        replyTo: replyingTo ? replyingTo : null
     };
 
     db.ref('messages').push(messageData);
     messageInput.value = '';
+    cancelReply(); // Clear reply state
 
     // Reset typing status immediately
     db.ref(`status/${currentUser}/typing`).set(false);
@@ -277,7 +330,19 @@ function renderMessage(msg, key) {
         `;
     }
 
+    // Reply Preview in Bubble
+    let replyHtml = '';
+    if (msg.replyTo) {
+        replyHtml = `
+            <div class="reply-quote">
+                <div class="reply-quote-sender">${msg.replyTo.sender === currentUser ? "You" : msg.replyTo.sender}</div>
+                <div class="reply-quote-text">${msg.replyTo.text}</div>
+            </div>
+        `;
+    }
+
     msgDiv.innerHTML = `
+        ${replyHtml}
         ${msg.image ? `<img src="${msg.image}" class="msg-image" alt="Image">` : `<div class="msg-text">${escapeHtml(msg.text)}</div>`}
         <div class="msg-meta">
             <span class="timestamp">${time}</span>
@@ -286,6 +351,10 @@ function renderMessage(msg, key) {
     `;
 
     chatContainer.appendChild(msgDiv);
+
+    // Add Swipe Handler
+    addSwipeHandler(msgDiv, msg, key);
+
     // Wait for image to load to scroll correctly (simple generic timeout or load listener)
     if (msg.image) {
         const img = msgDiv.querySelector('img');
@@ -314,4 +383,59 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// --- SWIPE TO REPLY ---
+function addSwipeHandler(el, msgData, key) {
+    let startX = 0;
+    let currentX = 0;
+
+    el.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        el.classList.add('swiping');
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+        currentX = e.touches[0].clientX;
+        const diff = currentX - startX;
+
+        // Only allow swipe right (positive diff) up to 100px
+        if (diff > 0 && diff < 100) {
+            el.style.transform = `translateX(${diff}px)`;
+        }
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+        el.classList.remove('swiping');
+        const diff = currentX - startX;
+
+        // Threshold to trigger reply
+        if (diff > 50) {
+            triggerReply(msgData);
+        }
+
+        // Reset position with animation
+        el.style.transform = 'translateX(0)';
+        startX = 0;
+        currentX = 0;
+    });
+}
+
+function triggerReply(msgData) {
+    replyingTo = {
+        id: "msg-" + Date.now(), // ideally use key but for now enough
+        text: msgData.image ? "📷 Photo" : msgData.text,
+        sender: msgData.sender
+    };
+
+    replySender.textContent = msgData.sender === currentUser ? "You" : msgData.sender;
+    replyText.textContent = replyingTo.text;
+
+    replyPreview.classList.remove('hidden');
+    messageInput.focus();
+}
+
+function cancelReply() {
+    replyingTo = null;
+    replyPreview.classList.add('hidden');
 }
