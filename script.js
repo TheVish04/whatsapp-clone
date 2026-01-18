@@ -43,7 +43,6 @@ const lastSeenEl = document.getElementById('last-seen');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
-const logoutBtn = document.getElementById('logout-btn');
 const sound = document.getElementById('msg-sound');
 // Image Elements
 const imageInput = document.getElementById('image-input');
@@ -69,7 +68,7 @@ sendBtn.addEventListener('click', sendMessage);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
-logoutBtn.addEventListener('click', () => location.reload()); // Simple logout
+
 messageInput.addEventListener('input', handleTyping);
 
 // Image Events
