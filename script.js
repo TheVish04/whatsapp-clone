@@ -21,7 +21,7 @@ try {
 const db = firebase.database();
 
 // --- STATE ---
-const PIN_CODE = "14082004"; // Hardcoded PIN
+const PIN_CODE = "2009"; // Hardcoded PIN
 let currentUser = null;
 let chatPartner = null;
 let currentChatRef = null;
@@ -127,7 +127,7 @@ function handleLogin() {
 
     // Success
     currentUser = user;
-    chatPartner = currentUser === 'vishal' ? 'bhavesh' : 'vishal';
+    chatPartner = currentUser === 'XAU/USD' ? 'BTC/USD' : 'XAU/USD';
 
     // Switch UI
     loginScreen.classList.add('hidden');
