@@ -484,3 +484,21 @@ input[type="password"] {
 #clear-chat-btn:hover {
     background-color: #f5f5f5;
 }
+/* EMOJI PICKER */
+.emoji-picker-container {
+    position: absolute;
+    bottom: 70px; /* Above the input area */
+    left: 10px;
+    z-index: 100;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    background-color: white;
+    overflow: hidden;
+}
+
+emoji-picker {
+    width: 300px;
+    height: 400px;
+    --background: #fff;
+    --border-color: #ddd;
+}

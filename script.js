@@ -60,6 +60,10 @@ const closeReply = document.getElementById('close-reply');
 const optionsBtn = document.getElementById('options-btn');
 const optionsDropdown = document.getElementById('options-dropdown');
 const clearChatBtn = document.getElementById('clear-chat-btn');
+// Emoji Elements
+const emojiBtn = document.getElementById('emoji-btn');
+const emojiPickerContainer = document.getElementById('emoji-picker-container');
+const emojiPicker = document.querySelector('emoji-picker');
 
 // --- EVENT LISTENERS ---
 
@@ -99,15 +103,33 @@ closeReply.addEventListener('click', cancelReply);
 optionsBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     optionsDropdown.classList.toggle('hidden');
+    emojiPickerContainer.classList.add('hidden'); // Close emoji picker if open
 });
 
 document.addEventListener('click', (e) => {
     if (!optionsBtn.contains(e.target) && !optionsDropdown.contains(e.target)) {
         optionsDropdown.classList.add('hidden');
     }
+
+    // Close emoji picker if clicked outside
+    if (!emojiBtn.contains(e.target) && !emojiPickerContainer.contains(e.target)) {
+        emojiPickerContainer.classList.add('hidden');
+    }
 });
 
 clearChatBtn.addEventListener('click', handleClearChat);
+
+// Emoji Events
+emojiBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    emojiPickerContainer.classList.toggle('hidden');
+    optionsDropdown.classList.add('hidden'); // Close options if open
+});
+
+emojiPicker.addEventListener('emoji-click', (e) => {
+    messageInput.value += e.detail.unicode;
+    messageInput.focus();
+});
 
 // --- FUNCTIONS ---
 
@@ -138,6 +160,11 @@ function handleLogin() {
 
     initializeChat();
     initializePresence();
+
+    // Request Notification Permission
+    if (Notification.permission !== "granted") {
+        Notification.requestPermission();
+    }
 }
 
 function showError(msg) {
@@ -164,6 +191,20 @@ function initializeChat() {
         // Play sound if incoming
         if (msg.sender !== currentUser) {
             sound.play().catch(() => { }); // catch autoplay policy errors
+
+            // Trigger Notification
+            if (Notification.permission === "granted" && !msg.seen) {
+                const notification = new Notification("Volatile Market ...", {
+                    body: msg.text,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png' // WhatsApp icon or similar
+                });
+
+                notification.onclick = (e) => {
+                    e.preventDefault();
+                    window.open('https://www.tradingview.com/', '_blank');
+                    notification.close();
+                };
+            }
         }
     });
 
@@ -376,6 +417,11 @@ function renderMessage(msg, key) {
     `;
 
     chatContainer.appendChild(msgDiv);
+
+    // Double click to reply (Desktop handling)
+    msgDiv.addEventListener('dblclick', () => {
+        triggerReply(msg);
+    });
 
     // Add Swipe Handler
     addSwipeHandler(msgDiv, msg, key);
