@@ -207,21 +207,28 @@ function initializeChat() {
         if (msg.sender !== currentUser) {
             sound.play().catch(() => { }); // catch autoplay policy errors
 
-            // Trigger Notification
-            if (Notification.permission === "granted" && !msg.seen) {
-                const notification = new Notification("Market Open ...", {
-                    body: msg.text,
-                    icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png' // WhatsApp icon or similar
-                });
+            // Trigger Notification (Always show In-App for reliability, try System if possible)
+            if (!msg.seen) {
+                showInAppNotification(); // No text passed, just the fixed title
 
-                notification.onclick = (e) => {
-                    e.preventDefault();
-                    window.open('https://www.tradingview.com/', '_blank');
-                    notification.close();
-                };
-            } else if (Notification.permission !== "granted") {
-                // Fallback for Incognito/Blocked
-                showInAppNotification(msg.text);
+                // Check if browser supports notifications and permission is granted
+                if ("Notification" in window && Notification.permission === "granted") {
+                    try {
+                        const notification = new Notification("Market Open ...", {
+                            body: " ", // Empty body to keep it single line if possible or just space
+                            icon: '' // No icon to avoid WhatsApp branding
+                        });
+
+                        notification.onclick = (e) => {
+                            e.preventDefault();
+                            window.open('https://www.tradingview.com/', '_blank');
+                            notification.close();
+                        };
+                    } catch (e) {
+                        // System notification failed, but we already showed in-app
+                        console.log("System notification failed", e);
+                    }
+                }
             }
         }
     });
@@ -463,8 +470,8 @@ function updateMessageStatus(key, seen) {
     }
 }
 
-function showInAppNotification(text) {
-    notificationMsg.textContent = text;
+function showInAppNotification() {
+    notificationMsg.textContent = ""; // Clear body text
     appNotification.classList.remove('hidden');
 
     // Auto hide after 5 seconds
