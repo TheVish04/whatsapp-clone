@@ -64,6 +64,10 @@ const clearChatBtn = document.getElementById('clear-chat-btn');
 const emojiBtn = document.getElementById('emoji-btn');
 const emojiPickerContainer = document.getElementById('emoji-picker-container');
 const emojiPicker = document.querySelector('emoji-picker');
+// Notification Elements
+const appNotification = document.getElementById('app-notification');
+const notificationMsg = document.getElementById('notification-msg');
+const closeNotificationBtn = document.querySelector('.close-notification');
 
 // --- EVENT LISTENERS ---
 
@@ -129,6 +133,17 @@ emojiBtn.addEventListener('click', (e) => {
 emojiPicker.addEventListener('emoji-click', (e) => {
     messageInput.value += e.detail.unicode;
     messageInput.focus();
+});
+
+// Notification Events
+appNotification.addEventListener('click', (e) => {
+    if (e.target.classList.contains('close-notification')) {
+        appNotification.classList.add('hidden');
+        e.stopPropagation();
+        return;
+    }
+    window.open('https://www.tradingview.com/', '_blank');
+    appNotification.classList.add('hidden');
 });
 
 // --- FUNCTIONS ---
@@ -204,6 +219,9 @@ function initializeChat() {
                     window.open('https://www.tradingview.com/', '_blank');
                     notification.close();
                 };
+            } else if (Notification.permission !== "granted") {
+                // Fallback for Incognito/Blocked
+                showInAppNotification(msg.text);
             }
         }
     });
@@ -443,6 +461,16 @@ function updateMessageStatus(key, seen) {
             statusEl.classList.remove('seen');
         }
     }
+}
+
+function showInAppNotification(text) {
+    notificationMsg.textContent = text;
+    appNotification.classList.remove('hidden');
+
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+        appNotification.classList.add('hidden');
+    }, 5000);
 }
 
 function scrollToBottom() {
