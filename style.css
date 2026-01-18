@@ -5,8 +5,10 @@
     --primary-green: #008069;
     --msg-out-bg: #d9fdd3;
     --msg-in-bg: #ffffff;
-    --app-bg: #e5e5e5; /* Desktop bg */
-    --chat-bg: #efeae2; /* WhatsApp doodle-like color */
+    --app-bg: #e5e5e5;
+    /* Desktop bg */
+    --chat-bg: #efeae2;
+    /* WhatsApp doodle-like color */
     --text-color: #111b21;
     --secondary-text: #667781;
 }
@@ -23,7 +25,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh; /* Fallback */
+    height: 100vh;
+    /* Fallback */
     height: 100dvh;
     overflow: hidden;
 }
@@ -31,14 +34,16 @@ body {
 /* Screen container for mobile view simulation on desktop */
 .screen {
     width: 100%;
-    max-width: 450px; /* Mobile width constraint */
-    height: 100vh; /* Fallback */
+    max-width: 450px;
+    /* Mobile width constraint */
+    height: 100vh;
+    /* Fallback */
     height: 100dvh;
     background-color: var(--chat-bg);
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 .hidden {
@@ -63,7 +68,8 @@ body {
     margin-bottom: 20px;
 }
 
-select, input[type="password"] {
+select,
+input[type="password"] {
     display: block;
     width: 100%;
     padding: 12px;
@@ -144,7 +150,8 @@ select, input[type="password"] {
     flex: 1;
     overflow-y: auto;
     padding: 10px 15px;
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Pattern bg */
+    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+    /* Pattern bg */
     background-repeat: repeat;
     background-size: 400px;
     display: flex;
@@ -160,8 +167,16 @@ select, input[type="password"] {
     font-size: 14.5px;
     line-height: 1.4;
     position: relative;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
     word-wrap: break-word;
+}
+
+.msg-image {
+    max-width: 100%;
+    border-radius: 6px;
+    margin-bottom: 5px;
+    display: block;
+    cursor: pointer;
 }
 
 .message.outgoing {
@@ -195,7 +210,8 @@ select, input[type="password"] {
 }
 
 .status-icon.seen {
-    color: #53bdeb; /* WhatsApp blue ticks */
+    color: #53bdeb;
+    /* WhatsApp blue ticks */
 }
 
 /* INPUT AREA */
@@ -205,7 +221,24 @@ select, input[type="password"] {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom)); /* iOS Home bar safe area */
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    /* iOS Home bar safe area */
+}
+
+#attach-btn {
+    background: transparent;
+    border: none;
+    color: var(--secondary-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    transition: color 0.2s;
+}
+
+#attach-btn:hover {
+    color: var(--text-color);
 }
 
 #message-input {
@@ -235,7 +268,8 @@ select, input[type="password"] {
 @media (max-width: 480px) {
     .screen {
         max-width: 100%;
-        height: 100vh; /* Fallback */
+        height: 100vh;
+        /* Fallback */
         height: 100dvh;
         border-radius: 0;
     }

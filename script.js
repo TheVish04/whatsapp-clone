@@ -43,6 +43,9 @@ const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const sound = document.getElementById('msg-sound');
+// Image Elements
+const imageInput = document.getElementById('image-input');
+const attachBtn = document.getElementById('attach-btn');
 
 // --- EVENT LISTENERS ---
 
@@ -53,6 +56,10 @@ messageInput.addEventListener('keypress', (e) => {
 });
 logoutBtn.addEventListener('click', () => location.reload()); // Simple logout
 messageInput.addEventListener('input', handleTyping);
+
+// Image Events
+attachBtn.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', handleImageSelect);
 
 // --- FUNCTIONS ---
 
@@ -159,6 +166,66 @@ function handleTyping() {
     }, 2000);
 }
 
+// Image Handling
+function handleImageSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Reset input so same file can be selected again if needed
+    imageInput.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            // Compress/Resize
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 600;
+            const MAX_HEIGHT = 600;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+            } else {
+                if (height > MAX_HEIGHT) {
+                    width *= MAX_HEIGHT / height;
+                    height = MAX_HEIGHT;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Compress
+            sendImageMessage(dataUrl);
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function sendImageMessage(base64Data) {
+    const messageData = {
+        sender: currentUser,
+        receiver: chatPartner,
+        text: "📷 Photo", // Placeholder for security rules/preview
+        image: base64Data,
+        timestamp: Date.now(),
+        seen: false
+    };
+
+    db.ref('messages').push(messageData);
+
+    // Stop typing status if it was stuck
+    db.ref(`status/${currentUser}/typing`).set(false);
+}
+
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
 }
@@ -189,7 +256,7 @@ function renderMessage(msg, key) {
     }
 
     msgDiv.innerHTML = `
-        <div class="msg-text">${escapeHtml(msg.text)}</div>
+        ${msg.image ? `<img src="${msg.image}" class="msg-image" alt="Image">` : `<div class="msg-text">${escapeHtml(msg.text)}</div>`}
         <div class="msg-meta">
             <span class="timestamp">${time}</span>
             ${statusIcon}
@@ -197,6 +264,11 @@ function renderMessage(msg, key) {
     `;
 
     chatContainer.appendChild(msgDiv);
+    // Wait for image to load to scroll correctly (simple generic timeout or load listener)
+    if (msg.image) {
+        const img = msgDiv.querySelector('img');
+        img.onload = scrollToBottom;
+    }
     scrollToBottom();
 }
 
