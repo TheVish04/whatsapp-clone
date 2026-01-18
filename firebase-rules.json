@@ -1,0 +1,14 @@
+"rules": {
+    "status": {
+        ".read": true,
+        ".write": true
+    },
+    "messages": {
+        ".read": true,
+        ".write": true,
+        "$messageId": {
+            ".validate": "newData.hasChildren(['sender', 'receiver', 'text']) || newData.hasChildren(['seen'])"
+        }
+    }
+}
+}
