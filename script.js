@@ -176,9 +176,22 @@ function handleLogin() {
     initializeChat();
     initializePresence();
 
-    // Request Notification Permission
-    if (Notification.permission !== "granted") {
-        Notification.requestPermission();
+    // Request Notification Permission with user feedback
+    if ("Notification" in window) {
+        if (Notification.permission === "default") {
+            Notification.requestPermission().then(function (permission) {
+                console.log("Notification permission:", permission);
+                if (permission === "denied") {
+                    alert("Notifications blocked! Go to browser settings to enable.");
+                }
+            });
+        } else if (Notification.permission === "denied") {
+            alert("Notifications are blocked. Please enable in browser Settings > Site Settings > Notifications.");
+        } else {
+            console.log("Notification permission already granted");
+        }
+    } else {
+        console.log("Notifications not supported in this browser");
     }
 }
 
