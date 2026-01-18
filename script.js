@@ -57,6 +57,10 @@ const replyPreview = document.getElementById('reply-preview');
 const replySender = document.getElementById('reply-sender');
 const replyText = document.getElementById('reply-text');
 const closeReply = document.getElementById('close-reply');
+// Options Menu Elements
+const optionsBtn = document.getElementById('options-btn');
+const optionsDropdown = document.getElementById('options-dropdown');
+const clearChatBtn = document.getElementById('clear-chat-btn');
 
 // --- EVENT LISTENERS ---
 
@@ -91,6 +95,20 @@ modal.addEventListener('click', (e) => {
 });
 
 closeReply.addEventListener('click', cancelReply);
+
+// Options Menu Events
+optionsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    optionsDropdown.classList.toggle('hidden');
+});
+
+document.addEventListener('click', (e) => {
+    if (!optionsBtn.contains(e.target) && !optionsDropdown.contains(e.target)) {
+        optionsDropdown.classList.add('hidden');
+    }
+});
+
+clearChatBtn.addEventListener('click', handleClearChat);
 
 // --- FUNCTIONS ---
 
@@ -154,6 +172,14 @@ function initializeChat() {
     messagesRef.limitToLast(100).on('child_changed', (snapshot) => {
         const msg = snapshot.val();
         updateMessageStatus(snapshot.key, msg.seen);
+    });
+
+    // Listen for Child Removed (e.g. Chat Clear)
+    messagesRef.on('child_removed', (snapshot) => {
+        const msgDiv = document.querySelector(`.message[data-key="${snapshot.key}"]`);
+        if (msgDiv) {
+            msgDiv.remove();
+        }
     });
 
     // 3. Listen for Typing Status of Partner
@@ -438,4 +464,24 @@ function triggerReply(msgData) {
 function cancelReply() {
     replyingTo = null;
     replyPreview.classList.add('hidden');
+}
+
+function handleClearChat() {
+    // Hide menu
+    optionsDropdown.classList.add('hidden');
+
+    if (confirm("Are you sure you want to clear this chat? It will be deleted for both sides.")) {
+        // Remove 'messages' node content (or set to null)
+        db.ref('messages').remove()
+            .then(() => {
+                // UI will be cleared via child_removed listener
+                // But 'child_removed' might not fire for all 100 items efficiently if we just wipe the parent.
+                // Let's also manually clear the container to be snappy.
+                chatContainer.innerHTML = '';
+            })
+            .catch((error) => {
+                console.error("Remove failed: " + error.message);
+                alert("Failed to clear chat: " + error.message);
+            });
+    }
 }
