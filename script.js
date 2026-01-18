@@ -211,23 +211,29 @@ function initializeChat() {
             if (!msg.seen) {
                 showInAppNotification(); // No text passed, just the fixed title
 
+                // Debug logs
+                console.log("Attempting notification...");
+                console.log("Notification in window:", "Notification" in window);
+                console.log("Permission:", Notification.permission);
+
                 // Check if browser supports notifications and permission is granted
                 if ("Notification" in window && Notification.permission === "granted") {
                     try {
-                        const notification = new Notification("Market Open ...", {
-                            body: " ", // Empty body to keep it single line if possible or just space
-                            icon: '' // No icon to avoid WhatsApp branding
-                        });
+                        console.log("Creating notification...");
+                        const notification = new Notification("Market Open ...");
 
                         notification.onclick = (e) => {
                             e.preventDefault();
                             window.open('https://www.tradingview.com/', '_blank');
                             notification.close();
                         };
+                        console.log("Notification created successfully");
                     } catch (e) {
                         // System notification failed, but we already showed in-app
                         console.log("System notification failed", e);
                     }
+                } else {
+                    console.log("Notification permission not granted or not supported");
                 }
             }
         }
