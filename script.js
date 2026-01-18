@@ -194,7 +194,7 @@ function initializeChat() {
 
             // Trigger Notification
             if (Notification.permission === "granted" && !msg.seen) {
-                const notification = new Notification("Volatile Market ...", {
+                const notification = new Notification("Market Open ...", {
                     body: msg.text,
                     icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png' // WhatsApp icon or similar
                 });
