@@ -82,7 +82,9 @@ const cameraStream = document.getElementById('camera-stream'); // video
 const cameraCanvas = document.getElementById('camera-canvas'); // canvas
 const closeCameraBtn = document.getElementById('close-camera');
 const captureBtn = document.getElementById('capture-btn');
+const switchCameraBtn = document.getElementById('switch-camera');
 let cameraStreamTrack = null;
+let currentFacingMode = 'user'; // 'user' or 'environment'
 
 // --- EVENT LISTENERS ---
 
@@ -165,6 +167,7 @@ appNotification.addEventListener('click', (e) => {
 cameraBtn.addEventListener('click', openCamera);
 closeCameraBtn.addEventListener('click', closeCameraModal);
 captureBtn.addEventListener('click', capturePhoto);
+switchCameraBtn.addEventListener('click', switchCamera);
 
 // --- FUNCTIONS ---
 
@@ -658,8 +661,20 @@ function openCamera() {
     }
 
     cameraModal.classList.remove('hidden');
+    startCameraStream();
+}
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+function startCameraStream() {
+    if (cameraStreamTrack) {
+        cameraStreamTrack.stop();
+    }
+
+    const constraints = {
+        video: { facingMode: currentFacingMode },
+        audio: false
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints)
         .then(function (stream) {
             cameraStream.srcObject = stream;
             cameraStreamTrack = stream.getTracks()[0];
@@ -667,8 +682,19 @@ function openCamera() {
         .catch(function (err) {
             console.error("Camera Error: " + err);
             alert("Could not access camera: " + err.message);
-            cameraModal.classList.add('hidden');
+            // If environment fails (e.g. on laptop), fallback to user
+            if (currentFacingMode === 'environment') {
+                currentFacingMode = 'user';
+                startCameraStream();
+            } else {
+                cameraModal.classList.add('hidden');
+            }
         });
+}
+
+function switchCamera() {
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    startCameraStream();
 }
 
 function closeCameraModal() {

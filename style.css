@@ -655,3 +655,22 @@ emoji-picker {
 #capture-btn:active {
     transform: scale(0.9);
 }
+
+#switch-camera {
+    position: absolute;
+    right: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    padding: 8px;
+}
+
+#switch-camera:active {
+    transform: rotate(180deg);
+}
