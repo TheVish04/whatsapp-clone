@@ -75,6 +75,15 @@ const appNotification = document.getElementById('app-notification');
 const notificationMsg = document.getElementById('notification-msg');
 const closeNotificationBtn = document.querySelector('.close-notification');
 
+// Camera Elements
+const cameraBtn = document.getElementById('camera-btn');
+const cameraModal = document.getElementById('camera-modal');
+const cameraStream = document.getElementById('camera-stream'); // video
+const cameraCanvas = document.getElementById('camera-canvas'); // canvas
+const closeCameraBtn = document.getElementById('close-camera');
+const captureBtn = document.getElementById('capture-btn');
+let cameraStreamTrack = null;
+
 // --- EVENT LISTENERS ---
 
 loginBtn.addEventListener('click', handleLogin);
@@ -151,6 +160,11 @@ appNotification.addEventListener('click', (e) => {
     window.open('https://www.tradingview.com/', '_blank');
     appNotification.classList.add('hidden');
 });
+
+// Camera Events
+cameraBtn.addEventListener('click', openCamera);
+closeCameraBtn.addEventListener('click', closeCameraModal);
+captureBtn.addEventListener('click', capturePhoto);
 
 // --- FUNCTIONS ---
 
@@ -632,4 +646,60 @@ function handleClearChat() {
                 alert("Failed to clear chat: " + error.message);
             });
     }
+}
+
+
+// --- CAMERA FUNCTIONS ---
+
+function openCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Camera not supported or permission denied.");
+        return;
+    }
+
+    cameraModal.classList.remove('hidden');
+
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+        .then(function (stream) {
+            cameraStream.srcObject = stream;
+            cameraStreamTrack = stream.getTracks()[0];
+        })
+        .catch(function (err) {
+            console.error("Camera Error: " + err);
+            alert("Could not access camera: " + err.message);
+            cameraModal.classList.add('hidden');
+        });
+}
+
+function closeCameraModal() {
+    cameraModal.classList.add('hidden');
+    if (cameraStreamTrack) {
+        cameraStreamTrack.stop();
+        cameraStreamTrack = null;
+    }
+    cameraStream.srcObject = null;
+}
+
+function capturePhoto() {
+    if (!cameraStreamTrack) return;
+
+    // Set canvas dimensions to match video
+    cameraCanvas.width = cameraStream.videoWidth;
+    cameraCanvas.height = cameraStream.videoHeight;
+
+    const ctx = cameraCanvas.getContext('2d');
+    // Flip horizontally if using front camera (optional, usually feels more natural)
+    // ctx.translate(cameraCanvas.width, 0);
+    // ctx.scale(-1, 1);
+
+    ctx.drawImage(cameraStream, 0, 0, cameraCanvas.width, cameraCanvas.height);
+
+    // Convert to Base64 JPEG
+    const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.7);
+
+    // Send
+    sendImageMessage(dataUrl);
+
+    // Close
+    closeCameraModal();
 }

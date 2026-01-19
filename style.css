@@ -566,3 +566,92 @@ emoji-picker {
         opacity: 1;
     }
 }
+
+/* CAMERA MODAL */
+#camera-modal {
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#camera-modal.hidden {
+    display: none !important;
+}
+
+.camera-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+}
+
+#camera-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Fill screen like a phone camera */
+}
+
+/* Controls Overlay */
+.camera-controls {
+    position: absolute;
+    bottom: 30px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    /* Center capture button */
+    align-items: center;
+    padding: 0 20px;
+}
+
+/* Close Button (Left or Top Right - WhatsApp style is usually top left or bottom left) */
+#close-camera {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 30px;
+    cursor: pointer;
+    z-index: 10;
+    padding: 10px;
+    line-height: 1;
+}
+
+/* Capture Button */
+.capture-btn-ring {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 4px solid white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+#capture-btn {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background-color: white;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+#capture-btn:active {
+    transform: scale(0.9);
+}
