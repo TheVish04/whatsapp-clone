@@ -1,14 +1,19 @@
-"rules": {
+{
+  "rules": {
     "status": {
-        ".read": true,
-        ".write": true
+      ".read": true,
+      ".write": true
     },
     "messages": {
-        ".read": true,
-        ".write": true,
-        "$messageId": {
-            ".validate": "newData.hasChildren(['sender', 'receiver', 'text']) || newData.hasChildren(['seen'])"
-        }
+      ".read": true,
+      ".write": true,
+      "$messageId": {
+        ".validate": "newData.hasChildren(['sender', 'receiver', 'text', 'timestamp']) || newData.hasChildren(['seen'])"
+      }
+    },
+    "tokens": {
+      ".read": false,
+      ".write": true
     }
-}
+  }
 }

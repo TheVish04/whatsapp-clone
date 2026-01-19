@@ -19,6 +19,12 @@ try {
 }
 
 const db = firebase.database();
+const messaging = firebase.messaging();
+
+// REPLACE WITH YOUR ACTUAL KEYS
+const VAPID_KEY = "BJ0uCMTncHrN6Way3i8qoagoN71lcE7PrSNl6E2zUJv2Rv8x4WczsSjId7wUVT2qoPbfGbJQmcjmPVA1kiwsTEE"; // Public Key only
+
+
 
 // --- STATE ---
 const PIN_CODE = "2009"; // Hardcoded PIN
@@ -193,6 +199,52 @@ function handleLogin() {
     } else {
         console.log("Notifications not supported in this browser");
     }
+
+    // --- FCM SETUP ---
+    setupFCM();
+}
+
+function setupFCM() {
+    if (!("serviceWorker" in navigator)) {
+        console.log("Service Worker not supported");
+        return;
+    }
+
+    // Register Service Worker
+    navigator.serviceWorker.register('./firebase-messaging-sw.js')
+        .then((registration) => {
+            console.log('Service Worker registered with scope:', registration.scope);
+
+            // Get Token
+            return messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
+        })
+        .then((currentToken) => {
+            if (currentToken) {
+                console.log('FCM Token:', currentToken);
+                saveTokenToDatabase(currentToken);
+            } else {
+                console.log('No registration token available. Request permission to generate one.');
+                // We rely on handleLogin's permission request or request here again
+            }
+        })
+        .catch((err) => {
+            console.log('An error occurred while retrieving token. ', err);
+        });
+
+    // Listen for foreground messages (optional, since we handle via child_added)
+    messaging.onMessage((payload) => {
+        console.log('Message received. ', payload);
+    });
+}
+
+function saveTokenToDatabase(token) {
+    if (!currentUser) return;
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('deviceId', deviceId);
+    }
+    db.ref(`tokens/${currentUser}/${deviceId}`).set(token);
 }
 
 function showError(msg) {
@@ -220,33 +272,13 @@ function initializeChat() {
         if (msg.sender !== currentUser) {
             sound.play().catch(() => { }); // catch autoplay policy errors
 
-            // Trigger Notification (Always show In-App for reliability, try System if possible)
+            // Trigger Notification (Always show In-App for reliability)
             if (!msg.seen) {
                 showInAppNotification(); // No text passed, just the fixed title
 
-                // Debug logs
-                console.log("Attempting notification...");
-                console.log("Notification in window:", "Notification" in window);
-                console.log("Permission:", Notification.permission);
-
-                // Check if browser supports notifications and permission is granted
-                if ("Notification" in window && Notification.permission === "granted") {
-                    try {
-                        console.log("Creating notification...");
-                        const notification = new Notification("Market Open ...");
-
-                        notification.onclick = (e) => {
-                            e.preventDefault();
-                            window.open('https://www.tradingview.com/', '_blank');
-                            notification.close();
-                        };
-                        console.log("Notification created successfully");
-                    } catch (e) {
-                        // System notification failed, but we already showed in-app
-                        console.log("System notification failed", e);
-                    }
-                } else {
-                    console.log("Notification permission not granted or not supported");
+                // TRIGGER OS NOTIFICATION IF HIDDEN
+                if (document.visibilityState === 'hidden') {
+                    showSystemNotification("New Message", msg.image ? "📷 Photo" : msg.text);
                 }
             }
         }
@@ -338,7 +370,11 @@ function sendMessage() {
 
     // Reset typing status immediately
     db.ref(`status/${currentUser}/typing`).set(false);
+
+    // Send FCM Notification to Partner (REMOVED: User requested no legacy server key usage)
+    // We rely on the partner's client being open (even if backgrounded) to read the message and trigger local notification.
 }
+
 
 // Typing Debounce
 let typingTimeout;
@@ -409,11 +445,34 @@ function sendImageMessage(base64Data) {
 
     // Stop typing status if it was stuck
     db.ref(`status/${currentUser}/typing`).set(false);
+
+    // Send FCM Notification
+    sendFCMNotification(chatPartner, "New Photo from " + currentUser, "📷 Photo");
 }
 
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
 }
+
+// --- SYSTEM NOTIFICATIONS (via SW) ---
+function showSystemNotification(title, body) {
+    if (!("serviceWorker" in navigator)) return;
+
+    // Use the Service Worker Registration to show the notification
+    // This allows it to work better in background/minimized states than new Notification()
+    navigator.serviceWorker.ready.then(function (registration) {
+        registration.showNotification(title, {
+            body: body,
+            icon: '/icon.png', // Ensure icon exists or fallback will occur
+            tag: 'new-message', // Replaces old notification with same tag
+            renotify: true,
+            data: {
+                url: window.location.href
+            }
+        });
+    });
+}
+
 
 // --- RENDERING ---
 
