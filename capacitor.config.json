@@ -1,0 +1,6 @@
+{
+  "appId": "com.vishal.whatsappclone",
+  "appName": "WhatsAppClone",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
