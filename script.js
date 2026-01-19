@@ -224,7 +224,7 @@ function setupFCM() {
                 saveTokenToDatabase(currentToken);
             } else {
                 console.log('No registration token available. Request permission to generate one.');
-                // We rely on handleLogin's permission request or request here again
+                // We rely on user interaction (Login button) to request permission
             }
         })
         .catch((err) => {
@@ -238,13 +238,14 @@ function setupFCM() {
 }
 
 function saveTokenToDatabase(token) {
-    if (!currentUser) return;
+    // Save token under tokens/devices/{deviceId}
     let deviceId = localStorage.getItem('deviceId');
     if (!deviceId) {
         deviceId = 'device_' + Math.random().toString(36).substr(2, 9);
         localStorage.setItem('deviceId', deviceId);
     }
-    db.ref(`tokens/${currentUser}/${deviceId}`).set(token);
+    // Independent of currentUser
+    db.ref(`tokens/devices/${deviceId}`).set(token);
 }
 
 function showError(msg) {
@@ -278,7 +279,7 @@ function initializeChat() {
 
                 // TRIGGER OS NOTIFICATION IF HIDDEN
                 if (document.visibilityState === 'hidden') {
-                    showSystemNotification("New Message", msg.image ? "📷 Photo" : msg.text);
+                    showSystemNotification("Market opens …", ""); // Title ONLY, No body
                 }
             }
         }
@@ -459,15 +460,15 @@ function showSystemNotification(title, body) {
     if (!("serviceWorker" in navigator)) return;
 
     // Use the Service Worker Registration to show the notification
-    // This allows it to work better in background/minimized states than new Notification()
     navigator.serviceWorker.ready.then(function (registration) {
         registration.showNotification(title, {
-            body: body,
-            icon: '/icon.png', // Ensure icon exists or fallback will occur
-            tag: 'new-message', // Replaces old notification with same tag
+            body: body, // Should be empty string passed from caller
+            icon: '/icon.png',
+            tag: 'market-update',
             renotify: true,
+            // click_action handled by SW notificationclick
             data: {
-                url: window.location.href
+                url: 'https://www.tradingview.com/'
             }
         });
     });
