@@ -273,11 +273,8 @@ function initializeChat() {
         if (msg.sender !== currentUser) {
             sound.play().catch(() => { }); // catch autoplay policy errors
 
-            // Trigger Notification (Always show In-App for reliability)
+            // Trigger OS Notification if hidden
             if (!msg.seen) {
-                showInAppNotification(); // No text passed, just the fixed title
-
-                // TRIGGER OS NOTIFICATION IF HIDDEN
                 if (document.visibilityState === 'hidden') {
                     showSystemNotification("Market opens …", ""); // Title ONLY, No body
                 }
@@ -549,15 +546,7 @@ function updateMessageStatus(key, seen) {
     }
 }
 
-function showInAppNotification() {
-    notificationMsg.textContent = ""; // Clear body text
-    appNotification.classList.remove('hidden');
 
-    // Auto hide after 5 seconds
-    setTimeout(() => {
-        appNotification.classList.add('hidden');
-    }, 5000);
-}
 
 function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
