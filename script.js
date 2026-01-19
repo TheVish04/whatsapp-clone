@@ -199,7 +199,16 @@ closeCameraBtn.addEventListener('click', closeCameraModal);
 captureBtn.addEventListener('click', capturePhoto);
 switchCameraBtn.addEventListener('click', switchCamera);
 retakeBtn.addEventListener('click', retakePhoto);
-sendPhotoBtn.addEventListener('click', confirmSendPhoto);
+switchCameraBtn.addEventListener('click', switchCamera);
+retakeBtn.addEventListener('click', retakePhoto);
+
+// Robust send handler (Click + Touch)
+const handleSend = (e) => {
+    e.preventDefault(); // Prevent double firing
+    confirmSendPhoto();
+};
+sendPhotoBtn.addEventListener('click', handleSend);
+sendPhotoBtn.addEventListener('touchstart', handleSend); // Mobile responsiveness
 
 // --- FUNCTIONS ---
 
@@ -906,6 +915,7 @@ function confirmSendPhoto() {
 
 // Attach globals to window for HTML access
 // Attach globals to window for HTML access
+// Attach globals to window for HTML access
 window.handleLogin = handleLogin;
 window.handleTyping = handleTyping;
 window.handleImageSelect = handleImageSelect;
@@ -914,16 +924,34 @@ window.sendMessage = sendMessage;
 window.capturePhoto = capturePhoto;
 window.openCamera = openCamera;
 window.closeCameraModal = function () {
-    console.log("Forcing close camera modal");
-    document.getElementById('camera-modal').classList.add('hidden');
-    // Stop tracks
+    const modal = document.getElementById('camera-modal');
+    modal.classList.add('hidden');
+    modal.style.display = 'none'; // Force hide
+
     if (cameraStreamTrack) {
         cameraStreamTrack.stop();
         cameraStreamTrack = null;
     }
     cameraStream.srcObject = null;
+
+    // Reset display style after delay so class control works next time
+    setTimeout(() => {
+        modal.style.display = '';
+    }, 500);
 };
 window.retakePhoto = retakePhoto;
 window.switchCamera = switchCamera;
-window.confirmSendPhoto = confirmSendPhoto;
+window.confirmSendPhoto = function () {
+    // 1. UI FIRST: Close immediately
+    window.closeCameraModal();
+
+    // 2. Logic Later
+    const dataUrl = cameraPreview.src;
+    if (dataUrl) {
+        sendImageMessage(dataUrl);
+    }
+
+    // 3. Reset Preview
+    setTimeout(retakePhoto, 300);
+};
 window.imageInput = imageInput; // for click()

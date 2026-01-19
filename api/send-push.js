@@ -50,8 +50,8 @@ module.exports = async (req, res) => {
         android: {
             priority: 'high',
             notification: {
-                channelId: 'market-update',
-                clickAction: 'android.intent.action.VIEW' // Force verify to open App or Browser
+                channelId: 'market-update'
+                // clickAction removed to let Capacitor/App handle it and fire listener
             }
         },
         data: {
