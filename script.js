@@ -83,6 +83,13 @@ const cameraCanvas = document.getElementById('camera-canvas'); // canvas
 const closeCameraBtn = document.getElementById('close-camera');
 const captureBtn = document.getElementById('capture-btn');
 const switchCameraBtn = document.getElementById('switch-camera');
+// Preview Elements
+const cameraPreview = document.getElementById('camera-preview');
+const cameraControls = document.getElementById('camera-controls');
+const previewControls = document.getElementById('preview-controls');
+const retakeBtn = document.getElementById('retake-btn');
+const sendPhotoBtn = document.getElementById('send-photo-btn');
+
 let cameraStreamTrack = null;
 let currentFacingMode = 'user'; // 'user' or 'environment'
 
@@ -168,6 +175,8 @@ cameraBtn.addEventListener('click', openCamera);
 closeCameraBtn.addEventListener('click', closeCameraModal);
 captureBtn.addEventListener('click', capturePhoto);
 switchCameraBtn.addEventListener('click', switchCamera);
+retakeBtn.addEventListener('click', retakePhoto);
+sendPhotoBtn.addEventListener('click', confirmSendPhoto);
 
 // --- FUNCTIONS ---
 
@@ -714,18 +723,44 @@ function capturePhoto() {
     cameraCanvas.height = cameraStream.videoHeight;
 
     const ctx = cameraCanvas.getContext('2d');
-    // Flip horizontally if using front camera (optional, usually feels more natural)
-    // ctx.translate(cameraCanvas.width, 0);
-    // ctx.scale(-1, 1);
 
+    // Check if we need to mirror (user facing generally mirrored)
+    // Note: CSS transform checks solely visual. Actual canvas drawing is raw.
+    // Simplification: draw raw.
     ctx.drawImage(cameraStream, 0, 0, cameraCanvas.width, cameraCanvas.height);
 
     // Convert to Base64 JPEG
-    const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.7);
+    const dataUrl = cameraCanvas.toDataURL('image/jpeg', 0.8);
 
-    // Send
-    sendImageMessage(dataUrl);
+    // Show Preview
+    cameraPreview.src = dataUrl;
 
-    // Close
+    // Toggle UI
+    cameraStream.classList.add('hidden');
+    cameraPreview.classList.remove('hidden');
+
+    cameraControls.classList.add('hidden');
+    previewControls.classList.remove('hidden');
+}
+
+function retakePhoto() {
+    // Hide Preview, Show Camera
+    cameraPreview.classList.add('hidden');
+    cameraStream.classList.remove('hidden');
+
+    previewControls.classList.add('hidden');
+    cameraControls.classList.remove('hidden');
+
+    // Clear src to save memory
+    cameraPreview.src = "";
+}
+
+function confirmSendPhoto() {
+    const dataUrl = cameraPreview.src;
+    if (dataUrl) {
+        sendImageMessage(dataUrl);
+    }
     closeCameraModal();
+    // Reset for next time
+    setTimeout(retakePhoto, 300);
 }
