@@ -327,7 +327,6 @@ function saveTokenToDatabase(token) {
         localStorage.setItem('deviceId', deviceId);
     }
     // Independent of currentUser
-    // Independent of currentUser
     db.ref(`tokens/devices/${deviceId}`).set(token);
 
     // ALSO Save for User lookup (so we can send pushes)

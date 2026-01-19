@@ -1,4 +1,4 @@
-package com.vishal.whatsappclone;
+package com.vishal.tradingcurrency;
 
 import com.getcapacitor.BridgeActivity;
 
