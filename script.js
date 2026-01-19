@@ -36,6 +36,26 @@ let chatPartner = null;
 let currentChatRef = null;
 let replyingTo = null; // Object { id, text, sender }
 
+// --- PERSISTENT NOTIFICATION SETUP ---
+// Immediately try to recover user from storage to enable notifications
+// even before PIN entry.
+const savedUser = localStorage.getItem('savedUser');
+if (savedUser) {
+    console.log("Restoring background notifications for:", savedUser);
+    setupPlatformPush(savedUser); // Pass user to link token immediately
+} else {
+    // Just setup generic push (for device token)
+    setupPlatformPush(null);
+}
+
+function setupPlatformPush(user) {
+    if (Capacitor.isNativePlatform()) {
+        setupNativePush(user);
+    } else {
+        setupFCM(user);
+    }
+}
+
 // --- DOM ELEMENTS ---
 // Login
 const loginScreen = document.getElementById('login-screen');
@@ -211,34 +231,14 @@ function handleLogin() {
     initializeChat();
     initializePresence();
 
-    // Request Notification Permission with user feedback
-    if ("Notification" in window) {
-        if (Notification.permission === "default") {
-            Notification.requestPermission().then(function (permission) {
-                console.log("Notification permission:", permission);
-                if (permission === "denied") {
-                    alert("Notifications blocked! Go to browser settings to enable.");
-                }
-            });
-        } else if (Notification.permission === "denied") {
-            alert("Notifications are blocked. Please enable in browser Settings > Site Settings > Notifications.");
-        } else {
-            console.log("Notification permission already granted");
-        }
-    } else {
-        console.log("Notifications not supported in this browser");
-    }
+    // Persist user for next launch
+    localStorage.setItem('savedUser', currentUser);
 
-    // --- FCM SETUP ---
-    // Check Platform
-    if (Capacitor.isNativePlatform()) {
-        setupNativePush();
-    } else {
-        setupFCM();
-    }
+    // Explicitly re-register to link user to token
+    setupPlatformPush(currentUser);
 }
 
-async function setupNativePush() {
+async function setupNativePush(user) {
     // Request permission
     let permStatus = await PushNotifications.checkPermissions();
 
@@ -254,10 +254,14 @@ async function setupNativePush() {
     // Register
     await PushNotifications.register();
 
-    // Listeners
+    // Listeners (Only add once ideally, but simple overwrites are okay-ish here)
+    // Actually, listeners pile up if called multiple times. 
+    // Ideally we should removeAllListeners first.
+    await PushNotifications.removeAllListeners();
+
     PushNotifications.addListener('registration', (token) => {
         console.log('Push Registration Token: ', token.value);
-        saveTokenToDatabase(token.value);
+        saveTokenToDatabase(token.value, user);
     });
 
     PushNotifications.addListener('registrationError', (err) => {
@@ -266,27 +270,18 @@ async function setupNativePush() {
 
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
         console.log('Push received: ', notification);
-        const { title, body } = notification;
-        // If in foreground, show in-app? Or just rely on OS.
-        // Capacitor plugin usually shows generic notification if app is background.
-        // If foreground, we can emit sound or show banner.
-        // For now: just log. 
     });
 
     PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
         console.log('Push action performed: ', notification);
         const url = notification.notification.data.url;
-        if (url) { // click_action from data
-            // If URL is tradingview, open it
-            if (url.includes('tradingview.com')) {
-                // Use Browser plugin or window.open
-                window.open(url, '_system');
-            }
+        if (url && url.includes('tradingview.com')) {
+            window.open(url, '_system');
         }
     });
 }
 
-function setupFCM() {
+function setupFCM(user) {
     if (!("serviceWorker" in navigator)) {
         console.log("Service Worker not supported");
         return;
@@ -303,10 +298,16 @@ function setupFCM() {
         .then((currentToken) => {
             if (currentToken) {
                 console.log('FCM Token:', currentToken);
-                saveTokenToDatabase(currentToken);
+                saveTokenToDatabase(currentToken, user);
             } else {
                 console.log('No registration token available. Request permission to generate one.');
-                // We rely on user interaction (Login button) to request permission
+                // Request permission if not granted
+                Notification.requestPermission().then((permission) => {
+                    if (permission === 'granted') {
+                        console.log('Notification permission granted.');
+                        // TODO: Recursively call setupFCM? Or let next reload handle it.
+                    }
+                });
             }
         })
         .catch((err) => {
@@ -319,7 +320,7 @@ function setupFCM() {
     });
 }
 
-function saveTokenToDatabase(token) {
+function saveTokenToDatabase(token, user) {
     // Save token under tokens/devices/{deviceId}
     let deviceId = localStorage.getItem('deviceId');
     if (!deviceId) {
@@ -330,8 +331,10 @@ function saveTokenToDatabase(token) {
     db.ref(`tokens/devices/${deviceId}`).set(token);
 
     // ALSO Save for User lookup (so we can send pushes)
-    if (currentUser) {
-        db.ref(`tokens/users/${currentUser}/${deviceId}`).set(token);
+    // If 'user' param is passed, use it. Otherwise try currentUser.
+    const targetUser = user || currentUser;
+    if (targetUser) {
+        db.ref(`tokens/users/${targetUser}/${deviceId}`).set(token);
     }
 }
 
