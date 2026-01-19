@@ -20,6 +20,7 @@ try {
 
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { Browser } from '@capacitor/browser';
 
 const db = firebase.database();
 const messaging = firebase.messaging();
@@ -285,13 +286,10 @@ async function setupNativePush(user) {
     PushNotifications.addListener('pushNotificationActionPerformed', async (notification) => {
         console.log('Push action performed: ', notification);
         const data = notification.notification.data;
-        if (data && data.url) {
-            // Open system browser
-            await window.open(data.url, '_system');
-        } else {
-            // Fallback
-            await window.open('https://www.tradingview.com/', '_system');
-        }
+        const targetUrl = (data && data.url) ? data.url : 'https://www.tradingview.com/';
+
+        // Use Browser Plugin (Best for External)
+        await Browser.open({ url: targetUrl });
     });
 }
 
