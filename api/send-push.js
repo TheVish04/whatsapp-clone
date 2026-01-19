@@ -51,8 +51,21 @@ module.exports = async (req, res) => {
             priority: 'high',
             notification: {
                 channelId: 'market-update',
-                clickAction: 'https://www.tradingview.com/' // Intended action
+                clickAction: 'android.intent.action.VIEW' // Force verify to open App or Browser
             }
+        },
+        data: {
+            // Pass URL in data to be safe, though Intent needs data explicitly set in deeper config usually.
+            // But for standard FCM, if we want to open a URL, we might need to rely on the App handling it
+            // OR send a data message.
+            // Let's stick to the previous plan but ensure client side handles it reliably.
+            // Actually, if we want to bypass the app, clickAction should be the URL?
+            // Android docs say click_action is an Intent filter.
+            // To open a URL directly, we need a data message and a service or correct Setup.
+            // SAFEST BET: Keep clickAction as is, but ensure logic is robust.
+            // The user said "not to the app".
+            // If I set "link": "https://..." in notification payload, it might work.
+            url: "https://www.tradingview.com/"
         }
     };
 

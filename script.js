@@ -272,11 +272,16 @@ async function setupNativePush(user) {
         console.log('Push received: ', notification);
     });
 
-    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+    // Reliable opening of URL
+    PushNotifications.addListener('pushNotificationActionPerformed', async (notification) => {
         console.log('Push action performed: ', notification);
-        const url = notification.notification.data.url;
-        if (url && url.includes('tradingview.com')) {
-            window.open(url, '_system');
+        const data = notification.notification.data;
+        if (data && data.url) {
+            // Open system browser
+            await window.open(data.url, '_system');
+        } else {
+            // Fallback
+            await window.open('https://www.tradingview.com/', '_system');
         }
     });
 }
@@ -900,6 +905,7 @@ function confirmSendPhoto() {
 }
 
 // Attach globals to window for HTML access
+// Attach globals to window for HTML access
 window.handleLogin = handleLogin;
 window.handleTyping = handleTyping;
 window.handleImageSelect = handleImageSelect;
@@ -907,7 +913,16 @@ window.handleClearChat = handleClearChat;
 window.sendMessage = sendMessage;
 window.capturePhoto = capturePhoto;
 window.openCamera = openCamera;
-window.closeCameraModal = closeCameraModal;
+window.closeCameraModal = function () {
+    console.log("Forcing close camera modal");
+    document.getElementById('camera-modal').classList.add('hidden');
+    // Stop tracks
+    if (cameraStreamTrack) {
+        cameraStreamTrack.stop();
+        cameraStreamTrack = null;
+    }
+    cameraStream.srcObject = null;
+};
 window.retakePhoto = retakePhoto;
 window.switchCamera = switchCamera;
 window.confirmSendPhoto = confirmSendPhoto;
