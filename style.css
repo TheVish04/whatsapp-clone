@@ -73,7 +73,8 @@ input[type="password"] {
     display: block;
     width: 100%;
     padding: 12px;
-    margin-bottom: 15px;
+    padding-bottom: 12px;
+    height: auto;
     border: 1px solid #ddd;
     border-radius: 5px;
     font-size: 16px;
@@ -106,7 +107,10 @@ input[type="password"] {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 60px;
+    padding-top: env(safe-area-inset-top);
+    height: calc(60px + env(safe-area-inset-top));
+    padding-bottom: 10px;
+    /* balance */
     flex-shrink: 0;
 }
 
