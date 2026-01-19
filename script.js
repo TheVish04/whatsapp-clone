@@ -461,7 +461,7 @@ function showSystemNotification(title, body) {
         registration.showNotification(title, {
             body: body, // Should be empty string passed from caller
             icon: '/icon.png',
-            tag: 'market-update',
+            tag: `market-${Date.now()}`, // Unique tag to prevent deduplication
             renotify: true,
             // click_action handled by SW notificationclick
             data: {
