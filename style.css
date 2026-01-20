@@ -684,3 +684,31 @@ emoji-picker {
 #switch-camera:active {
     transform: rotate(180deg);
 }
+
+/* Highlight Animation for Reply Click */
+@keyframes highlight {
+    0% {
+        background-color: rgba(0, 128, 105, 0.3);
+    }
+    100% {
+        background-color: var(--msg-in-bg); /* Default background will takeover */
+    }
+}
+
+.highlight-message {
+    animation: highlight 1s ease-out;
+}
+
+/* Ensure outgoing messages reset to their color */
+.message.outgoing.highlight-message {
+    animation-name: highlight-outgoing;
+}
+
+@keyframes highlight-outgoing {
+    0% {
+        background-color: rgba(0, 128, 105, 0.3);
+    }
+    100% {
+        background-color: var(--msg-out-bg);
+    }
+}

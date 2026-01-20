@@ -673,7 +673,7 @@ function renderMessage(msg, key) {
     let replyHtml = '';
     if (msg.replyTo) {
         replyHtml = `
-            <div class="reply-quote">
+            <div class="reply-quote" data-reply-id="${msg.replyTo.id}">
                 <div class="reply-quote-sender">${msg.replyTo.sender === currentUser ? "You" : msg.replyTo.sender}</div>
                 <div class="reply-quote-text">${msg.replyTo.text}</div>
             </div>
@@ -693,7 +693,7 @@ function renderMessage(msg, key) {
 
     // Double click to reply (Desktop handling)
     msgDiv.addEventListener('dblclick', () => {
-        triggerReply(msg);
+        triggerReply(msg, key);
     });
 
     // Add Swipe Handler
@@ -705,6 +705,27 @@ function renderMessage(msg, key) {
         img.onload = scrollToBottom;
     }
     scrollToBottom();
+
+    // Click to Scroll on Reply
+    if (msg.replyTo) {
+        const replyQuote = msgDiv.querySelector('.reply-quote');
+        replyQuote.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            const targetId = msg.replyTo.id;
+            const targetEl = document.querySelector(`.message[data-key="${targetId}"]`);
+
+            if (targetEl) {
+                targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetEl.classList.add('highlight-message');
+                setTimeout(() => {
+                    targetEl.classList.remove('highlight-message');
+                }, 1000);
+            } else {
+                // Optional: Show "Message not found" toast
+                console.log("Original message not found locally.");
+            }
+        });
+    }
 }
 
 function updateMessageStatus(key, seen) {
@@ -757,7 +778,7 @@ function addSwipeHandler(el, msgData, key) {
 
         // Threshold to trigger reply
         if (diff > 50) {
-            triggerReply(msgData);
+            triggerReply(msgData, key);
         }
 
         // Reset position with animation
@@ -767,9 +788,9 @@ function addSwipeHandler(el, msgData, key) {
     });
 }
 
-function triggerReply(msgData) {
+function triggerReply(msgData, key) {
     replyingTo = {
-        id: "msg-" + Date.now(), // ideally use key but for now enough
+        id: key, // Use actual Firebase key
         text: msgData.image ? "📷 Photo" : msgData.text,
         sender: msgData.sender
     };
