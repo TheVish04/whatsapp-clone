@@ -76,7 +76,9 @@ const sendBtn = document.getElementById('send-btn');
 const sound = document.getElementById('msg-sound');
 // Image Elements
 const imageInput = document.getElementById('image-input');
+const docInput = document.getElementById('doc-input'); // New
 const attachBtn = document.getElementById('attach-btn');
+const docBtn = document.getElementById('doc-btn'); // New
 // Modal Elements
 const modal = document.getElementById('image-modal');
 const modalImg = document.getElementById('modal-img');
@@ -130,6 +132,10 @@ messageInput.addEventListener('input', handleTyping);
 // Image Events
 attachBtn.addEventListener('click', () => imageInput.click());
 imageInput.addEventListener('change', handleImageSelect);
+
+// Document Events
+docBtn.addEventListener('click', () => docInput.click());
+docInput.addEventListener('change', handleDocumentSelect);
 
 // Modal Events
 chatContainer.addEventListener('click', (e) => {
@@ -210,6 +216,15 @@ const handleSend = (e) => {
 };
 sendPhotoBtn.addEventListener('click', handleSend);
 sendPhotoBtn.addEventListener('touchstart', handleSend); // Mobile responsiveness
+
+window.downloadFile = (dataUrl, fileName) => {
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
 
 // --- FUNCTIONS ---
 
@@ -620,6 +635,46 @@ function sendImageMessage(base64Data) {
     sendFCMNotification(chatPartner, "New Photo from " + currentUser, "📷 Photo");
 }
 
+function handleDocumentSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Reset input
+    docInput.value = '';
+
+    // File Limit Check (e.g. 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        alert("File size exceeds 5MB limit.");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const base64Data = event.target.result;
+        sendDocumentMessage(file, base64Data);
+    };
+    reader.readAsDataURL(file);
+}
+
+function sendDocumentMessage(file, base64Data) {
+    const messageData = {
+        sender: currentUser,
+        receiver: chatPartner,
+        text: `📄 ${file.name}`,
+        file: {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            data: base64Data
+        },
+        timestamp: Date.now(),
+        seen: false
+    };
+
+    db.ref('messages').push(messageData);
+    db.ref(`status/${currentUser}/typing`).set(false);
+}
+
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
 }
@@ -682,7 +737,27 @@ function renderMessage(msg, key) {
 
     msgDiv.innerHTML = `
         ${replyHtml}
-        ${msg.image ? `<img src="${msg.image}" class="msg-image" alt="Image">` : `<div class="msg-text">${escapeHtml(msg.text)}</div>`}
+        ${(() => {
+            if (msg.file) {
+                return `
+                <div class="document-bubble" onclick="downloadFile('${msg.file.data}', '${msg.file.name}')">
+                    <div class="doc-icon">${msg.file.name.split('.').pop()}</div>
+                    <div class="doc-info">
+                        <span class="doc-name">${msg.file.name}</span>
+                        <span class="doc-meta">${(msg.file.size / 1024).toFixed(1)} KB • ${msg.file.name.split('.').pop().toUpperCase()}</span>
+                    </div>
+                    <div class="doc-download">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/>
+                        </svg>
+                    </div>
+                </div>`;
+            } else if (msg.image) {
+                return `<img src="${msg.image}" class="msg-image" alt="Image">`;
+            } else {
+                return `<div class="msg-text">${escapeHtml(msg.text)}</div>`;
+            }
+        })()}
         <div class="msg-meta">
             <span class="timestamp">${time}</span>
             ${statusIcon}

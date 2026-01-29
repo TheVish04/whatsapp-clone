@@ -237,6 +237,79 @@ input[type="password"] {
     color: var(--text-color);
 }
 
+#doc-btn {
+    background: transparent;
+    border: none;
+    color: var(--secondary-text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    transition: color 0.2s;
+    transform: rotate(45deg);
+    /* Pin/Paperclip usually angled */
+}
+
+#doc-btn:hover {
+    color: var(--text-color);
+}
+
+/* DOCUMENT MESSAGE */
+.document-bubble {
+    display: flex;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 6px;
+    padding: 10px;
+    gap: 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    min-width: 200px;
+}
+
+.doc-icon {
+    width: 30px;
+    height: 30px;
+    background-color: #ff5252;
+    /* Generic PDF/File color */
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+.doc-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+.doc-name {
+    font-size: 14px;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.doc-meta {
+    font-size: 11px;
+    color: #888;
+}
+
+.doc-download {
+    color: var(--secondary-text);
+    padding: 5px;
+}
+
 #message-input {
     flex: 1;
     min-width: 0;
@@ -690,8 +763,10 @@ emoji-picker {
     0% {
         background-color: rgba(0, 128, 105, 0.3);
     }
+
     100% {
-        background-color: var(--msg-in-bg); /* Default background will takeover */
+        background-color: var(--msg-in-bg);
+        /* Default background will takeover */
     }
 }
 
@@ -708,6 +783,7 @@ emoji-picker {
     0% {
         background-color: rgba(0, 128, 105, 0.3);
     }
+
     100% {
         background-color: var(--msg-out-bg);
     }
