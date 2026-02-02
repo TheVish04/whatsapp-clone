@@ -642,9 +642,9 @@ function handleDocumentSelect(e) {
     // Reset input
     docInput.value = '';
 
-    // File Limit Check (e.g. 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-        alert("File size exceeds 5MB limit.");
+    // File Limit Check (e.g. 100MB)
+    if (file.size > 100 * 1024 * 1024) {
+        alert("File size exceeds 100MB limit.");
         return;
     }
 
