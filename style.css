@@ -757,6 +757,7 @@ body::before {
     color: var(--text-primary);
     font-size: 16px;
     padding: 10px 8px;
+    appearance: none;
     -webkit-appearance: none;
     -webkit-tap-highlight-color: transparent;
 }
