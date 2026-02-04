@@ -134,14 +134,6 @@ const dndModalMessage = document.getElementById('dnd-modal-message');
 const dndModalCancel = document.getElementById('dnd-modal-cancel');
 const dndModalSend = document.getElementById('dnd-modal-send');
 // Tic-Tac-Toe Modal Elements
-const gameInviteModal = document.getElementById('game-invite-modal');
-const gameInviteMessage = document.getElementById('game-invite-message');
-const gameInviteDecline = document.getElementById('game-invite-decline');
-const gameInviteAccept = document.getElementById('game-invite-accept');
-const tttGameModal = document.getElementById('ttt-game-modal');
-const tttModalBoard = document.getElementById('ttt-modal-board');
-const tttModalStatus = document.getElementById('ttt-modal-status');
-const tttModalClose = document.getElementById('ttt-modal-close');
 // Ghost Text Elements
 const ghostPreview = document.getElementById('ghost-preview');
 const ghostText = document.getElementById('ghost-text');
@@ -157,7 +149,6 @@ const plusGalleryBtn = document.getElementById('plus-gallery-btn');
 const plusDrawingBtn = document.getElementById('plus-drawing-btn');
 const plusSleepBtn = document.getElementById('plus-sleep-btn');
 const plusSecretBtn = document.getElementById('plus-secret-btn');
-const plusTictactoeBtn = document.getElementById('plus-tictactoe-btn');
 
 // Drawing Elements
 const drawingModal = document.getElementById('drawing-modal');
@@ -292,16 +283,6 @@ if (plusSleepBtn) {
             plusMenu.classList.add('hidden');
             plusBtn.classList.remove('active');
         });
-    });
-}
-
-// Tic-Tac-Toe Game (Modal-based)
-if (plusTictactoeBtn) {
-    plusTictactoeBtn.addEventListener('click', () => {
-        if (!currentUser || !chatPartner) return;
-        sendTictactoeInvite();
-        plusMenu.classList.add('hidden');
-        plusBtn.classList.remove('active');
     });
 }
 
@@ -630,7 +611,12 @@ function handleLogin() {
 
     initializeChat();
     initializePresence();
-    setupGameInviteListener();
+
+    // Scroll to newest messages after login (immediate + delayed for async message load)
+    requestAnimationFrame(() => {
+        scrollToBottom(false);
+        setTimeout(() => scrollToBottom(false), 400);
+    });
 
     // Persist user for next launch
     localStorage.setItem('savedUser', currentUser);
@@ -870,7 +856,7 @@ function initializeChat() {
         const key = snapshot.key;
 
         // 1. Check if message already exists (Pending -> Confirmed)
-        const existingMsg = document.querySelector(`.message[data-key="${key}"]`);
+        const existingMsg = document.getElementById('msg-' + key);
         if (existingMsg) {
             // If it was a pending message, update its status and timestamp, remove loading
             if (existingMsg.classList.contains('pending')) {
@@ -900,7 +886,7 @@ function initializeChat() {
 
         // 1. Check for Deletion Update
         if (msg.deleted) {
-            const msgDiv = document.querySelector(`.message[data-key="${snapshot.key}"]`);
+            const msgDiv = document.getElementById('msg-' + snapshot.key);
             if (msgDiv) {
                 // Update content to "Deleted" style
                 const textNode = msgDiv.querySelector('.msg-text');
@@ -942,7 +928,7 @@ function initializeChat() {
 
     // Listen for Child Removed (e.g. Chat Clear)
     messagesRef.on('child_removed', (snapshot) => {
-        const msgDiv = document.querySelector(`.message[data-key="${snapshot.key}"]`);
+        const msgDiv = document.getElementById('msg-' + snapshot.key);
         if (msgDiv) {
             msgDiv.remove();
         }
@@ -1135,14 +1121,18 @@ function handleTyping() {
 
 // Image Handling
 let isImageProcessing = false;
+let lastImageSelectTime = 0;
 
 function handleImageSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Guard against double fire (change event can fire twice on some mobile browsers)
+    const now = Date.now();
+    if (now - lastImageSelectTime < 1000) return;
+
     if (isImageProcessing) return;
     isImageProcessing = true;
+    lastImageSelectTime = now;
 
     // Capture secret mode at selection time (async FileReader may complete later)
     const isSecret = isSecretMode;
@@ -1225,7 +1215,7 @@ function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     // Push to DB
     newMsgRef.set(messageData).then(() => {
         pendingKeys.delete(key);
-        const msgEl = document.querySelector(`.message[data-key="${key}"]`);
+        const msgEl = document.getElementById('msg-' + key);
         if (msgEl) {
             msgEl.classList.remove('pending');
             const statusIcon = msgEl.querySelector('.status-icon');
@@ -1315,7 +1305,7 @@ function doSendDocumentMessage(file, base64Data, opts = {}) {
     newMsgRef.set(messageData).then(() => {
         pendingKeys.delete(newKey);
         // Clean up doc spinner
-        const msgRow = document.querySelector(`.message[data-key="${newKey}"]`);
+        const msgRow = document.getElementById('msg-' + newKey);
         if (msgRow) {
             const spinner = msgRow.querySelector('.doc-loading-spinner');
             if (spinner) spinner.remove();
@@ -1334,166 +1324,6 @@ function doSendDocumentMessage(file, base64Data, opts = {}) {
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
 }
-
-// --- TIC-TAC-TOE GAME ---
-const TTT_WIN_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-
-// --- TIC-TAC-TOE MODAL (invite + game) ---
-let currentGameId = null;
-let gameStateUnsubscribe = null;
-
-function sendTictactoeInvite() {
-    const gameState = {
-        board: [null, null, null, null, null, null, null, null, null],
-        turn: currentUser,
-        status: 'active',
-        players: { X: currentUser, O: chatPartner }
-    };
-    const gameRef = db.ref('games').push(gameState);
-    currentGameId = gameRef.key;
-    db.ref(`status/${chatPartner}/gameInvite`).set({
-        from: currentUser,
-        gameId: currentGameId,
-        type: 'tictactoe'
-    });
-    openTictactoeModal(currentGameId);
-}
-
-function setupGameInviteListener() {
-    if (!currentUser) return;
-    db.ref(`status/${currentUser}/gameInvite`).on('value', (snapshot) => {
-        const invite = snapshot.val();
-        if (!invite || invite.type !== 'tictactoe') return;
-        const inviterName = invite.from ? (invite.from.charAt(0).toUpperCase() + invite.from.slice(1)) : 'Partner';
-        if (gameInviteMessage) gameInviteMessage.textContent = `${inviterName} wants to play Tic-Tac-Toe`;
-        gameInviteModal.dataset.gameId = invite.gameId;
-        gameInviteModal.dataset.from = invite.from;
-        gameInviteModal.classList.remove('hidden');
-    });
-}
-
-function getTictactoeWinningLine(board) {
-    for (const line of TTT_WIN_LINES) {
-        const [a, b, c] = line;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) return line;
-    }
-    return null;
-}
-
-function openTictactoeModal(gameId) {
-    currentGameId = gameId;
-    tttGameModal.classList.remove('hidden');
-    if (gameStateUnsubscribe) gameStateUnsubscribe();
-    gameStateUnsubscribe = db.ref(`games/${gameId}`).on('value', (snapshot) => {
-        const gs = snapshot.val();
-        if (gs) renderTictactoeModal(gs);
-    });
-}
-
-function renderTictactoeModal(gs) {
-    const board = gs.board || [null, null, null, null, null, null, null, null, null];
-    const winningLine = gs.winningLine || [];
-    const isActive = gs.status === 'active';
-    const isMyTurn = isActive && gs.turn === currentUser;
-    let statusText = 'Game Over';
-    if (gs.status === 'active') statusText = isMyTurn ? 'Your Turn' : 'Waiting for Partner';
-    else if (gs.status === 'draw') statusText = "It's a Draw!";
-    else if (gs.status && gs.status.startsWith('winner_')) {
-        const winner = gs.status.replace('winner_', '');
-        statusText = winner === currentUser ? 'You Win!' : 'Game Over';
-    }
-    tttModalStatus.textContent = statusText;
-    tttModalBoard.innerHTML = board.map((val, i) => {
-        const isWinning = winningLine.includes(i);
-        const canClick = isMyTurn && val === null;
-        const disabledAttr = !canClick ? ' data-disabled="true"' : '';
-        return `<div class="ttt-modal-cell ${isWinning ? 'ttt-winner' : ''}${!canClick ? ' ttt-cell-disabled' : ''}" data-cell="${i}"${disabledAttr} role="button" tabindex="${canClick ? 0 : -1}">${val || ''}</div>`;
-    }).join('');
-}
-
-function handleTictactoeModalCellClick(cellIndex) {
-    if (!currentGameId) return;
-    const gameRef = db.ref(`games/${currentGameId}`);
-    gameRef.once('value').then((snapshot) => {
-        const gs = snapshot.val();
-        if (!gs || gs.status !== 'active' || gs.turn !== currentUser) return;
-        if (gs.board[cellIndex] !== null) return;
-
-        const mySymbol = gs.players.X === currentUser ? 'X' : 'O';
-
-        // Optimistic UI: show X/O immediately
-        const cell = tttModalBoard.querySelector(`.ttt-modal-cell[data-cell="${cellIndex}"]`);
-        if (cell) {
-            cell.textContent = mySymbol;
-            cell.setAttribute('data-disabled', 'true');
-            cell.classList.add('ttt-cell-disabled');
-        }
-
-        const newBoard = [...gs.board];
-        newBoard[cellIndex] = mySymbol;
-
-        const winnerLine = getTictactoeWinningLine(newBoard);
-        let newStatus = 'active';
-        let newTurn = gs.players.X === currentUser ? gs.players.O : gs.players.X;
-        let winningLine = null;
-
-        if (winnerLine) {
-            newStatus = 'winner_' + currentUser;
-            newTurn = null;
-            winningLine = winnerLine;
-        } else if (newBoard.every(c => c !== null)) {
-            newStatus = 'draw';
-            newTurn = null;
-        }
-
-        const updates = { board: newBoard, turn: newTurn, status: newStatus };
-        if (winningLine) updates.winningLine = winningLine;
-        gameRef.update(updates);
-    });
-}
-
-function closeTictactoeModal() {
-    tttGameModal.classList.add('hidden');
-    currentGameId = null;
-    if (gameStateUnsubscribe) {
-        gameStateUnsubscribe();
-        gameStateUnsubscribe = null;
-    }
-}
-
-// Game invite modal handlers
-if (gameInviteDecline) {
-    gameInviteDecline.addEventListener('click', () => {
-        db.ref(`status/${currentUser}/gameInvite`).remove();
-        gameInviteModal.classList.add('hidden');
-    });
-}
-if (gameInviteAccept) {
-    gameInviteAccept.addEventListener('click', () => {
-        const gameId = gameInviteModal.dataset.gameId;
-        db.ref(`status/${currentUser}/gameInvite`).remove();
-        gameInviteModal.classList.add('hidden');
-        if (gameId) openTictactoeModal(gameId);
-    });
-}
-if (tttModalClose) {
-    tttModalClose.addEventListener('click', closeTictactoeModal);
-}
-
-// Tic-Tac-Toe modal: document-level listener (most reliable for WebView/mobile)
-function handleTttCellTap(e) {
-    if (!tttGameModal || tttGameModal.classList.contains('hidden')) return;
-    const cell = e.target.closest('.ttt-modal-cell');
-    if (!cell || !tttModalBoard || !tttModalBoard.contains(cell)) return;
-    if (cell.getAttribute('data-disabled') === 'true' || cell.classList.contains('ttt-cell-disabled')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const idx = parseInt(cell.getAttribute('data-cell'), 10);
-    if (!isNaN(idx)) handleTictactoeModalCellClick(idx);
-}
-document.addEventListener('click', handleTttCellTap, true);
-document.addEventListener('touchend', handleTttCellTap, { capture: true, passive: false });
-document.addEventListener('pointerdown', handleTttCellTap, true);
 
 // --- SYSTEM NOTIFICATIONS (via SW) ---
 function showSystemNotification(title, body) {
@@ -1520,12 +1350,12 @@ function showSystemNotification(title, body) {
 function renderMessage(msg, key) {
     const isOutgoing = msg.sender === currentUser;
 
-    // Check if message already exists (e.g. from optimistic pending render)
-    let msgDiv = document.querySelector(`.message[data-key="${key}"]`);
+    let msgDiv = document.getElementById('msg-' + key);
     const isUpdate = !!msgDiv;
 
     if (!msgDiv) {
         msgDiv = document.createElement('div');
+        msgDiv.id = 'msg-' + key;
         msgDiv.classList.add('message');
         msgDiv.classList.add(isOutgoing ? 'outgoing' : 'incoming');
         msgDiv.setAttribute('data-key', key);
@@ -1659,7 +1489,7 @@ function renderMessage(msg, key) {
             e.stopPropagation();
             if (!msg.deleted) {
                 toggleReaction(key, msg.reactions);
-                cancelReply(); // Cancel the accidental reply trigger from the 2nd click
+                cancelReply();
             }
         }
     });
@@ -1725,7 +1555,7 @@ function renderMessage(msg, key) {
         replyQuote.addEventListener('click', (e) => {
             e.stopPropagation(); // Prevent bubbling
             const targetId = msg.replyTo.id;
-            const targetEl = document.querySelector(`.message[data-key="${targetId}"]`);
+            const targetEl = document.getElementById('msg-' + targetId);
 
             if (targetEl) {
                 targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });

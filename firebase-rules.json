@@ -16,7 +16,7 @@
       ".read": true,
       ".write": true,
       "$messageId": {
-        ".validate": "newData.hasChildren(['sender', 'receiver', 'text', 'timestamp']) || newData.hasChildren(['seen'])"
+        ".validate": "newData.hasChildren(['sender', 'receiver', 'text', 'timestamp']) || newData.hasChildren(['sender', 'type', 'timestamp', 'gameState']) || newData.hasChildren(['seen'])"
       }
     },
     "tokens": {

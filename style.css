@@ -624,18 +624,6 @@ body::before {
 .message.outgoing .msg-reactions { right: 8px; left: auto; }
 .msg-reactions.hidden { display: none; }
 
-/* Tic-Tac-Toe */
-.ttt-game {
-    padding: 12px;
-    background: rgba(37, 42, 55, 0.6);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-md);
-}
-.message.outgoing .ttt-game {
-    background: rgba(0, 227, 150, 0.08);
-    border-color: rgba(0, 227, 150, 0.2);
-}
-
 /* Loading */
 .img-loading-overlay {
     position: absolute;
@@ -873,125 +861,6 @@ emoji-picker {
     color: #131722;
 }
 .dnd-send:hover { background: linear-gradient(135deg, #00f5a0 0%, #00c985 100%); }
-
-/* Game Invite */
-.game-invite-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3000;
-}
-
-.game-invite-content {
-    background: var(--bg-panel);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    padding: 28px;
-    max-width: 340px;
-    width: 90%;
-    text-align: center;
-    box-shadow: var(--shadow);
-    animation: modalScaleIn 0.25s ease-out;
-}
-
-.game-invite-icon { font-size: 48px; margin-bottom: 12px; }
-.game-invite-content p { color: var(--text-secondary); margin-bottom: 24px; }
-
-.game-invite-buttons { display: flex; gap: 12px; justify-content: center; }
-.game-invite-btn {
-    padding: 12px 24px;
-    border-radius: var(--radius-md);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    min-height: 44px;
-    transition: transform 0.1s;
-}
-.game-invite-btn:active {
-    transform: scale(0.95);
-}
-.game-invite-btn.decline {
-    background: rgba(255,255,255,0.1);
-    color: var(--text-primary);
-}
-.game-invite-btn.accept {
-    background: linear-gradient(135deg, #00E396 0%, #00b377 100%);
-    color: #131722;
-}
-
-/* TTT Modal */
-.ttt-game-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(8px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 3000;
-    pointer-events: auto;
-}
-
-.ttt-modal-content {
-    background: var(--bg-panel);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    max-width: 340px;
-    width: 90%;
-    pointer-events: auto;
-    animation: modalScaleIn 0.25s ease-out;
-}
-
-.ttt-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.ttt-modal-header h3 { font-size: 18px; }
-.ttt-close-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 28px;
-    cursor: pointer;
-}
-
-.ttt-modal-board {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    width: 180px;
-    height: 180px;
-    margin: 0 auto 16px;
-}
-
-.ttt-modal-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    font-weight: 700;
-    background: var(--bg-elevated);
-    border: 2px solid var(--glass-border);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: background 0.2s, border-color 0.2s;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-.ttt-modal-cell:not(.ttt-cell-disabled):hover {
-    background: rgba(0, 227, 150, 0.1);
-    border-color: var(--accent-teal);
-}
-.ttt-modal-cell.ttt-cell-disabled { cursor: default; }
-.ttt-modal-cell.ttt-winner {
-    background: rgba(0, 227, 150, 0.2) !important;
-    border-color: var(--accent-teal) !important;
-}
-
-.ttt-modal-status { text-align: center; font-size: 14px; color: var(--text-secondary); }
 
 /* Image Modal */
 #image-modal {
@@ -1247,38 +1116,6 @@ emoji-picker {
     0% { background: rgba(0, 227, 150, 0.4); }
     100% { background: transparent; }
 }
-
-/* TTT Inline (chat bubble) */
-.ttt-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 4px;
-    width: 120px;
-    height: 120px;
-}
-.ttt-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: 700;
-    background: var(--bg-elevated);
-    border: 2px solid var(--glass-border);
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-}
-.ttt-cell:not(.ttt-disabled):hover {
-    background: rgba(0, 227, 150, 0.1);
-    border-color: var(--accent-teal);
-}
-.ttt-cell.ttt-disabled { cursor: default; }
-.ttt-cell.ttt-winner {
-    background: rgba(0, 227, 150, 0.2) !important;
-    border-color: var(--accent-teal) !important;
-}
-.ttt-status { margin-top: 8px; font-size: 12px; color: var(--text-muted); }
 
 /* Search highlight */
 .highlight-text {
