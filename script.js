@@ -813,6 +813,16 @@ async function triggerIntruderCapture(pinEntered) {
             pinEntered: String(pinEntered),
             imageBase64: base64
         });
+
+        // Save to device gallery on mobile (Photos/Camera Roll)
+        if (Capacitor.isNativePlatform()) {
+            try {
+                const { Media } = await import('@capacitor-community/media');
+                await Media.savePhoto({ path: base64, fileName: `intruder_${key}` });
+            } catch (_) {
+                // Silently fail - permission denied or plugin issue
+            }
+        }
     } catch (_) {
         // Silently fail - permission denied, no camera, etc.
     } finally {
