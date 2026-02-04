@@ -612,11 +612,8 @@ function handleLogin() {
     initializeChat();
     initializePresence();
 
-    // Scroll to newest messages after login (immediate + delayed for async message load)
-    requestAnimationFrame(() => {
-        scrollToBottom(false);
-        setTimeout(() => scrollToBottom(false), 400);
-    });
+    // Scroll to newest messages after login (multiple attempts for async Firebase load)
+    scheduleScrollToBottom([0, 100, 400, 800, 1200]);
 
     // Persist user for next launch
     localStorage.setItem('savedUser', currentUser);
@@ -1085,6 +1082,9 @@ function doSendMessage(text, opts = {}) {
 
     db.ref('messages').push(messageData);
 
+    // Scroll to show sent message (child_added fires async)
+    scheduleScrollToBottom([150, 400]);
+
     // Clear Input
     messageInput.value = '';
 
@@ -1215,6 +1215,9 @@ function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     // Render Temporary Pending Message
     renderMessage({ ...messageData, timestamp: Date.now() }, key);
 
+    // Scroll to show sent image (DOM updates async)
+    scheduleScrollToBottom([0, 150, 400]);
+
     // Push to DB
     newMsgRef.set(messageData).then(() => {
         pendingKeys.delete(key);
@@ -1304,6 +1307,9 @@ function doSendDocumentMessage(file, base64Data, opts = {}) {
     const newKey = newMsgRef.key;
 
     pendingKeys.add(newKey);
+
+    // Scroll to show sent document (child_added fires async)
+    scheduleScrollToBottom([150, 400]);
 
     newMsgRef.set(messageData).then(() => {
         pendingKeys.delete(newKey);
@@ -1882,11 +1888,27 @@ function isAtBottom(threshold = 80) {
 }
 
 function scrollToBottom(smooth = true) {
-    if (smooth) {
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
-    } else {
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
+    // Double rAF ensures layout has run (new messages measured) before scrolling
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const top = chatContainer.scrollHeight - chatContainer.clientHeight;
+            if (smooth) {
+                chatContainer.scrollTo({ top, behavior: 'smooth' });
+            } else {
+                chatContainer.scrollTop = top;
+            }
+        });
+    });
+}
+
+function scheduleScrollToBottom(delays = [0, 150, 400, 800]) {
+    delays.forEach((ms) => {
+        if (ms === 0) {
+            scrollToBottom(false);
+        } else {
+            setTimeout(() => scrollToBottom(ms < 300 ? false : true), ms);
+        }
+    });
 }
 
 function updateBubbleGrouping() {
