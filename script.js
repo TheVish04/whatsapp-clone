@@ -777,6 +777,8 @@ async function triggerIntruderCapture(pinEntered) {
     const canvas = document.createElement('canvas');
     video.setAttribute('autoplay', '');
     video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    video.muted = true;
     Object.assign(video.style, {
         position: 'absolute', opacity: '0', pointerEvents: 'none',
         width: '0', height: '0', visibility: 'hidden'
@@ -794,10 +796,25 @@ async function triggerIntruderCapture(pinEntered) {
         });
         video.srcObject = stream;
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Must play before we can capture frames (required on mobile WebViews)
+        await video.play();
+
+        // Wait for video to have valid dimensions and frames
+        await new Promise((resolve) => {
+            const onReady = () => {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    resolve();
+                }
+            };
+            video.addEventListener('loadeddata', onReady, { once: true });
+            video.addEventListener('playing', onReady, { once: true });
+            setTimeout(resolve, 800);
+        });
 
         const w = video.videoWidth || 640;
         const h = video.videoHeight || 480;
+        if (w === 0 || h === 0) return;
+
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
