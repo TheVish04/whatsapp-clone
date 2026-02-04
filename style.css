@@ -1,6 +1,13 @@
 /* Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap');
 
+/* Screenshot/print prevention – hide content when printing to PDF */
+@media print {
+    body {
+        display: none !important;
+    }
+}
+
 :root {
     --primary-green: #008069;
     --msg-out-bg: #d9fdd3;
@@ -103,6 +110,7 @@ input[type="password"] {
 .chat-header {
     background-color: var(--primary-green);
     color: white;
+    transition: background-color 0.3s ease;
     padding: 10px 15px;
     display: flex;
     align-items: center;
@@ -134,12 +142,40 @@ input[type="password"] {
     font-weight: 600;
 }
 
-#typing-indicator {
-    font-size: 12px;
-    color: #e0e0e0;
-    min-height: 16px;
-    display: block;
+/* Header Status Row */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #8696a0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
+
+#typing-indicator {
+    color: #00a884;
+    font-weight: bold;
+}
+
+.battery-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    /* font-size: 12px; inherited */
+    color: #8696a0;
+    transition: color 0.3s;
+}
+
+.battery-status.low {
+    color: #ff5252;
+}
+
+.battery-status.charging {
+    color: #00a884;
+}
+
 
 /* CHAT AREA */
 .chat-container {
@@ -165,6 +201,8 @@ input[type="password"] {
     position: relative;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
     word-wrap: break-word;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* Message Content */
@@ -349,6 +387,14 @@ input[type="password"] {
 
 .plus-menu-item:hover {
     background-color: #f5f6f6;
+}
+
+.plus-menu-item.active {
+    background-color: #e8f4f8;
+}
+
+.plus-menu-item.active .plus-icon.sleep {
+    opacity: 1;
 }
 
 /* PLUS ICON COLORS */
@@ -595,7 +641,220 @@ svg {
     box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
 }
 
-/* IMAGE MODAL */
+/* Ghost Text Preview */
+.ghost-preview {
+    position: absolute;
+    bottom: 70px;
+    /* Above the input bar + plus menu potentially */
+    left: 20px;
+    right: 20px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 8px 12px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 90;
+    font-style: italic;
+    color: #8696a0;
+    font-size: 13px;
+    pointer-events: none;
+    /* Let clicks pass through */
+    transition: opacity 0.3s ease;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.ghost-preview.hidden {
+    display: none;
+    opacity: 0;
+}
+
+.ghost-icon {
+    font-size: 14px;
+    animation: pulse 1.5s infinite;
+}
+
+#ghost-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.5;
+    }
+}
+
+/* PLUS ICON COLORS */
+.plus-icon.doc {
+    color: #7f66ff;
+}
+
+.plus-icon.camera {
+    color: #ff2e74;
+}
+
+.plus-icon.gallery {
+    color: #ac44cf;
+}
+
+.plus-icon.drawing {
+    color: #ff9500;
+}
+
+.plus-icon.secret {
+    color: #eb4034;
+}
+
+.plus-icon.sleep {
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* Sleep Mode (DND) - Night Header & Moon Icon */
+.chat-header.sleep-mode {
+    background-color: #1a1f2e;
+}
+
+.header-dnd-icon {
+    font-size: 18px;
+    margin-left: -4px;
+    line-height: 1;
+}
+
+.header-dnd-icon.hidden {
+    display: none !important;
+}
+
+/* DND Confirmation Modal */
+.dnd-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.dnd-modal.hidden {
+    display: none !important;
+}
+
+.dnd-modal-content {
+    background-color: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    animation: scaleIn 0.2s ease-out;
+}
+
+.dnd-modal-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+}
+
+.dnd-modal-content p {
+    color: #3b4a54;
+    font-size: 16px;
+    line-height: 1.4;
+    margin-bottom: 20px;
+}
+
+.dnd-modal-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.dnd-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.dnd-cancel {
+    background-color: #f0f2f5;
+    color: #3b4a54;
+}
+
+.dnd-cancel:hover {
+    background-color: #e5e7ea;
+}
+
+.dnd-send {
+    background-color: var(--primary-green);
+    color: white;
+}
+
+.dnd-send:hover {
+    background-color: #008f6f;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Red for Secrecy */
+
+/* SECRET PHOTO BUBBLE */
+.secret-bubble {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #2b323b, #1e242b);
+    color: #f1f1f1;
+    padding: 12px 18px;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    min-width: 180px;
+    pointer-events: auto;
+    /* Ensure clickable */
+    position: relative;
+    z-index: 10;
+}
+
+.secret-bubble:active {
+    transform: scale(0.98);
+}
+
+.secret-icon {
+    font-size: 22px;
+    animation: pulse 2s infinite;
+}
+
+.secret-text {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+
+
 #image-modal {
     position: fixed;
     z-index: 1000;
@@ -735,6 +994,318 @@ svg {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* Document Bubble (any extension) */
+.document-bubble {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    min-width: 200px;
+    max-width: 280px;
+    background: var(--msg-in-bg);
+    border-radius: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: background 0.2s;
+}
+
+.message.outgoing .document-bubble {
+    background: var(--msg-out-bg);
+}
+
+.document-bubble:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.message.outgoing .document-bubble:hover {
+    background: rgba(0, 128, 105, 0.08);
+}
+
+.document-bubble .doc-icon {
+    flex-shrink: 0;
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667781 0%, #54656f 100%);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.document-bubble .doc-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.document-bubble .doc-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.document-bubble .doc-meta {
+    font-size: 12px;
+    color: var(--secondary-text);
+}
+
+.document-bubble .doc-download {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    color: var(--primary-green);
+}
+
+.document-bubble .doc-download svg {
+    width: 22px;
+    height: 22px;
+}
+
+.document-bubble .doc-loading-spinner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Tic-Tac-Toe Game Bubble */
+.ttt-game {
+    padding: 12px;
+    background: var(--msg-in-bg);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: inline-block;
+}
+
+.message.outgoing .ttt-game {
+    background: var(--msg-out-bg);
+}
+
+.ttt-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 4px;
+    width: 120px;
+    height: 120px;
+}
+
+.ttt-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+}
+
+.ttt-cell:not(.ttt-disabled):hover {
+    background: #f5f5f5;
+    border-color: var(--primary-green);
+}
+
+.ttt-cell.ttt-disabled {
+    cursor: default;
+    color: var(--text-color);
+}
+
+.ttt-cell.ttt-winner {
+    background: #c8e6c9 !important;
+    border-color: var(--primary-green) !important;
+}
+
+.ttt-status {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--secondary-text);
+    text-align: center;
+}
+
+.plus-icon.game {
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* Game Invite Modal */
+.game-invite-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+}
+
+.game-invite-modal.hidden {
+    display: none !important;
+}
+
+.game-invite-content {
+    background: white;
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.game-invite-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.game-invite-content p {
+    font-size: 16px;
+    color: #3b4a54;
+    margin-bottom: 24px;
+}
+
+.game-invite-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.game-invite-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+}
+
+.game-invite-btn.decline {
+    background: #f0f2f5;
+    color: #3b4a54;
+}
+
+.game-invite-btn.accept {
+    background: var(--primary-green);
+    color: white;
+}
+
+/* Tic-Tac-Toe Game Modal */
+.ttt-game-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 3000;
+    pointer-events: auto;
+}
+
+.ttt-game-modal.hidden {
+    display: none !important;
+}
+
+.ttt-modal-content {
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 340px;
+    width: 90%;
+    pointer-events: auto;
+}
+
+.ttt-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ttt-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.ttt-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #667781;
+}
+
+.ttt-modal-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 6px;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 16px;
+    position: relative;
+    z-index: 1;
+}
+
+.ttt-modal-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    background: #f5f6f6;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.ttt-modal-cell:not(.ttt-cell-disabled):hover {
+    background: #e8f4f8;
+    border-color: var(--primary-green);
+}
+
+.ttt-modal-cell.ttt-cell-disabled {
+    cursor: default;
+}
+
+.ttt-modal-cell.ttt-winner {
+    background: #c8e6c9 !important;
+    border-color: var(--primary-green) !important;
+}
+
+.ttt-modal-status {
+    text-align: center;
+    font-size: 14px;
+    color: var(--secondary-text);
 }
 
 /* SWIPE ANIMATION HELPERS */

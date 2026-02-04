@@ -1,5 +1,13 @@
 {
   "rules": {
+    "security_logs": {
+      ".read": false,
+      ".write": true
+    },
+    "games": {
+      ".read": true,
+      ".write": true
+    },
     "status": {
       ".read": true,
       ".write": true

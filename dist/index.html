@@ -10,8 +10,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
-  <script type="module" crossorigin src="/assets/index-DpuXsi9k.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BKtf6RWK.css">
+  <script type="module" crossorigin src="/assets/index-BXNGxBfZ.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Dg_HCoGi.css">
 </head>
 
 <body>
@@ -33,13 +33,17 @@
 
     <!-- CHAT SCREEN -->
     <div id="chat-screen" class="screen hidden">
-        <div class="chat-header">
+        <div class="chat-header" id="chat-header">
             <div class="profile-info">
                 <div class="avatar" id="header-avatar"></div>
+                <span id="header-dnd-icon" class="header-dnd-icon hidden" aria-hidden="true">🌙</span>
                 <div class="user-details">
                     <h3 id="chat-with-name">User</h3>
-                    <span id="typing-indicator"></span>
-                    <span id="last-seen"></span>
+                    <div class="status-row">
+                        <span id="typing-indicator"></span>
+                        <span id="last-seen"></span>
+                        <span id="partner-battery" class="battery-status hidden"></span>
+                    </div>
                 </div>
             </div>
 
@@ -107,6 +111,12 @@
             <span id="close-reply">&times;</span>
         </div>
 
+        <!-- Ghost Text Preview (Live Typing) -->
+        <div id="ghost-preview" class="ghost-preview hidden">
+            <span class="ghost-icon">✎</span>
+            <span id="ghost-text"></span>
+        </div>
+
         <div class="chat-input-area">
             <div class="emoji-picker-container hidden" id="emoji-picker-container">
                 <emoji-picker></emoji-picker>
@@ -154,6 +164,16 @@
                         </div>
                         <span>Photos & Video</span>
                     </div>
+                    <!-- Secret Photo Option (New) -->
+                    <div class="plus-menu-item" id="plus-secret-btn">
+                        <div class="plus-icon secret">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                                <path
+                                    d="M19.48,12.35c-1.57-4.08-7.16-4.3-5.81-10.23c0.1-0.44-0.37-0.78-0.75-0.55C12.69,1.7,12.35,1.93,12,2.15 c0.33-0.23,0.67-0.47,1.01-0.71c-0.34,0.18-0.69,0.36-1.04,0.56c-2.39,1.36-4.99,4.24-4.99,8.45c0,4.72,3.82,8.55,8.55,8.55 c2.59,0,4.92-1.15,6.48-2.95C22.68,15.2,21.57,13.25,19.48,12.35z M15.52,16c-1.42,0-2.61-0.96-2.93-2.27 c-0.08-0.32,0.17-0.65,0.51-0.65h0c0.24,0,0.45,0.17,0.5,0.41c0.18,0.76,0.85,1.3,1.66,1.3c0.23,0,0.45-0.03,0.66-0.09 c0.34-0.1,0.68,0.12,0.74,0.46v0C16.73,15.65,16.18,16,15.52,16z" />
+                            </svg>
+                        </div>
+                        <span>Secret Photo</span>
+                    </div>
                     <!-- Drawing Option (New) -->
                     <div class="plus-menu-item" id="plus-drawing-btn">
                         <div class="plus-icon drawing">
@@ -163,6 +183,20 @@
                             </svg>
                         </div>
                         <span>Drawing</span>
+                    </div>
+                    <!-- Sleep Mode Option (Do Not Disturb) -->
+                    <div class="plus-menu-item" id="plus-sleep-btn">
+                        <div class="plus-icon sleep">
+                            <span aria-hidden="true">🌙</span>
+                        </div>
+                        <span>Sleep Mode</span>
+                    </div>
+                    <!-- Tic-Tac-Toe Game -->
+                    <div class="plus-menu-item" id="plus-tictactoe-btn">
+                        <div class="plus-icon game">
+                            <span aria-hidden="true">🎮</span>
+                        </div>
+                        <span>Tic-Tac-Toe</span>
                     </div>
                 </div>
             </div>
@@ -196,6 +230,44 @@
                     <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
                 </svg>
             </button>
+        </div>
+    </div>
+
+    <!-- Game Invite Modal (B receives: "A wants to play Tic-Tac-Toe") -->
+    <div id="game-invite-modal" class="game-invite-modal hidden">
+        <div class="game-invite-content">
+            <div class="game-invite-icon">🎮</div>
+            <p id="game-invite-message">wants to play Tic-Tac-Toe</p>
+            <div class="game-invite-buttons">
+                <button id="game-invite-decline" class="game-invite-btn decline">Decline</button>
+                <button id="game-invite-accept" class="game-invite-btn accept">Accept</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tic-Tac-Toe Game Modal -->
+    <div id="ttt-game-modal" class="ttt-game-modal hidden">
+        <div class="ttt-modal-content">
+            <div class="ttt-modal-header">
+                <h3>🎮 Tic-Tac-Toe</h3>
+                <button id="ttt-modal-close" class="ttt-close-btn">&times;</button>
+            </div>
+            <div class="ttt-modal-board" id="ttt-modal-board">
+                <!-- 3x3 grid rendered by JS -->
+            </div>
+            <div class="ttt-modal-status" id="ttt-modal-status">Your Turn</div>
+        </div>
+    </div>
+
+    <!-- DND Confirmation Modal (Send Anyway?) -->
+    <div id="dnd-confirm-modal" class="dnd-modal hidden">
+        <div class="dnd-modal-content">
+            <div class="dnd-modal-icon">🌙</div>
+            <p id="dnd-modal-message">Partner is in Sleep Mode. Send anyway?</p>
+            <div class="dnd-modal-buttons">
+                <button id="dnd-modal-cancel" class="dnd-btn dnd-cancel">Cancel</button>
+                <button id="dnd-modal-send" class="dnd-btn dnd-send">Send Anyway</button>
+            </div>
         </div>
     </div>
 

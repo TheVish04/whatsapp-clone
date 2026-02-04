@@ -2,5 +2,13 @@
   "appId": "com.vishal.tradingcurrency",
   "appName": "Trading Currency",
   "webDir": "dist",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "PrivacyScreen": {
+      "enable": true,
+      "imageName": "",
+      "contentMode": "center",
+      "preventScreenshots": true
+    }
+  }
 }

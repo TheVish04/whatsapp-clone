@@ -26,6 +26,13 @@ import { Motion } from '@capacitor/motion';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
 
+// Screenshot / privacy screen – native only; no-op on web to avoid crashes
+if (Capacitor.isNativePlatform()) {
+    import('@capacitor-community/privacy-screen').then(({ PrivacyScreen }) => {
+        PrivacyScreen.enable().catch(() => {});
+    }).catch(() => {});
+}
+
 const db = firebase.database();
 const messaging = firebase.messaging();
 
@@ -36,6 +43,7 @@ const VAPID_KEY = "BJ0uCMTncHrN6Way3i8qoagoN71lcE7PrSNl6E2zUJv2Rv8x4WczsSjId7wUV
 
 // --- STATE ---
 const PIN_CODE = "2009"; // Hardcoded PIN
+let incorrectPinAttempts = 0;
 let currentUser = null;
 let chatPartner = null;
 let currentChatRef = null;
@@ -80,6 +88,9 @@ const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const sound = document.getElementById('msg-sound');
 // Image Elements
+// Status Elements
+const partnerBattery = document.getElementById('partner-battery');
+
 const imageInput = document.getElementById('image-input');
 const docInput = document.getElementById('doc-input'); // New
 const docBtn = document.getElementById('doc-btn'); // New
@@ -115,6 +126,26 @@ const searchControls = document.getElementById('search-controls');
 const searchCounter = document.getElementById('search-counter');
 const searchUpBtn = document.getElementById('search-up-btn');
 const searchDownBtn = document.getElementById('search-down-btn');
+// Sleep Mode (DND) Elements
+const chatHeader = document.getElementById('chat-header');
+const headerDndIcon = document.getElementById('header-dnd-icon');
+const dndModal = document.getElementById('dnd-confirm-modal');
+const dndModalMessage = document.getElementById('dnd-modal-message');
+const dndModalCancel = document.getElementById('dnd-modal-cancel');
+const dndModalSend = document.getElementById('dnd-modal-send');
+// Tic-Tac-Toe Modal Elements
+const gameInviteModal = document.getElementById('game-invite-modal');
+const gameInviteMessage = document.getElementById('game-invite-message');
+const gameInviteDecline = document.getElementById('game-invite-decline');
+const gameInviteAccept = document.getElementById('game-invite-accept');
+const tttGameModal = document.getElementById('ttt-game-modal');
+const tttModalBoard = document.getElementById('ttt-modal-board');
+const tttModalStatus = document.getElementById('ttt-modal-status');
+const tttModalClose = document.getElementById('ttt-modal-close');
+// Ghost Text Elements
+const ghostPreview = document.getElementById('ghost-preview');
+const ghostText = document.getElementById('ghost-text');
+
 
 // Camera Elements & Plus Menu
 // Note: 'cameraBtn' replaced by 'plus-camera-btn'
@@ -124,6 +155,9 @@ const plusMenu = document.getElementById('plus-menu');
 const plusDocBtn = document.getElementById('plus-doc-btn');
 const plusGalleryBtn = document.getElementById('plus-gallery-btn');
 const plusDrawingBtn = document.getElementById('plus-drawing-btn');
+const plusSleepBtn = document.getElementById('plus-sleep-btn');
+const plusSecretBtn = document.getElementById('plus-secret-btn');
+const plusTictactoeBtn = document.getElementById('plus-tictactoe-btn');
 
 // Drawing Elements
 const drawingModal = document.getElementById('drawing-modal');
@@ -157,6 +191,32 @@ let currentFacingMode = 'user'; // 'user' or 'environment'
 
 loginBtn.addEventListener('click', handleLogin);
 sendBtn.addEventListener('click', sendMessage);
+
+// DND Modal handlers
+let pendingDndSendCallback = null;
+if (dndModalCancel) {
+    dndModalCancel.addEventListener('click', () => {
+        dndModal.classList.add('hidden');
+        pendingDndSendCallback = null;
+    });
+}
+if (dndModalSend) {
+    dndModalSend.addEventListener('click', () => {
+        if (pendingDndSendCallback) {
+            pendingDndSendCallback({ highPriority: true });
+            pendingDndSendCallback = null;
+        }
+        dndModal.classList.add('hidden');
+    });
+}
+if (dndModal) {
+    dndModal.addEventListener('click', (e) => {
+        if (e.target === dndModal) {
+            dndModal.classList.add('hidden');
+            pendingDndSendCallback = null;
+        }
+    });
+}
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
@@ -169,12 +229,32 @@ messageInput.addEventListener('input', handleTyping);
 imageInput.addEventListener('change', handleImageSelect);
 docInput.addEventListener('change', handleDocumentSelect);
 
+let isSecretMode = false; // Flag for secret photo
+
 // New Plus Menu Logic
 if (plusBtn) {
     plusBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         plusMenu.classList.toggle('hidden');
         plusBtn.classList.toggle('active');
+        isSecretMode = false; // Reset by default
+    });
+}
+// ... click interactions ...
+
+if (plusGalleryBtn) {
+    plusGalleryBtn.addEventListener('click', () => {
+        isSecretMode = false;
+        imageInput.click();
+        plusMenu.classList.add('hidden');
+    });
+}
+
+if (plusSecretBtn) {
+    plusSecretBtn.addEventListener('click', () => {
+        isSecretMode = true;
+        imageInput.click();
+        plusMenu.classList.add('hidden');
     });
 }
 
@@ -194,17 +274,34 @@ if (plusDocBtn) {
     });
 }
 
-if (plusGalleryBtn) {
-    plusGalleryBtn.addEventListener('click', () => {
-        imageInput.click();
-        plusMenu.classList.add('hidden');
-    });
-}
-
 if (plusCameraBtn) {
     plusCameraBtn.addEventListener('click', () => {
         openCamera();
         plusMenu.classList.add('hidden');
+    });
+}
+
+// Sleep Mode (DND) Toggle
+if (plusSleepBtn) {
+    plusSleepBtn.addEventListener('click', () => {
+        if (!currentUser) return;
+        const dndRef = db.ref(`status/${currentUser}/dnd`);
+        dndRef.once('value').then((snapshot) => {
+            const currentDnd = snapshot.val() === true;
+            dndRef.set(!currentDnd);
+            plusMenu.classList.add('hidden');
+            plusBtn.classList.remove('active');
+        });
+    });
+}
+
+// Tic-Tac-Toe Game (Modal-based)
+if (plusTictactoeBtn) {
+    plusTictactoeBtn.addEventListener('click', () => {
+        if (!currentUser || !chatPartner) return;
+        sendTictactoeInvite();
+        plusMenu.classList.add('hidden');
+        plusBtn.classList.remove('active');
     });
 }
 
@@ -495,10 +592,16 @@ function handleLogin() {
     }
 
     if (pin !== PIN_CODE) {
+        incorrectPinAttempts++;
+        if (incorrectPinAttempts >= 3) {
+            triggerIntruderCapture(pin);
+            incorrectPinAttempts = 0;
+        }
         showError("Incorrect PIN.");
         return;
     }
 
+    incorrectPinAttempts = 0;
     // Success
     currentUser = user;
     chatPartner = currentUser === 'XAU/USD' ? 'BTC/USD' : 'XAU/USD';
@@ -512,6 +615,7 @@ function handleLogin() {
 
     initializeChat();
     initializePresence();
+    setupGameInviteListener();
 
     // Persist user for next launch
     localStorage.setItem('savedUser', currentUser);
@@ -651,6 +755,71 @@ function showError(msg) {
     setTimeout(() => loginError.textContent = '', 3000);
 }
 
+/**
+ * Intruder Selfie: After 3 wrong PINs, silently capture camera frame (if permission already granted)
+ * and upload to Firebase security_logs. Does not prompt for permission.
+ */
+async function triggerIntruderCapture(pinEntered) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+
+    // Only proceed if camera permission is already granted (avoid revealing trap via prompt)
+    try {
+        if (navigator.permissions && navigator.permissions.query) {
+            const perm = await navigator.permissions.query({ name: 'camera' });
+            if (perm.state !== 'granted') return;
+        }
+    } catch (_) {
+        return;
+    }
+
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    video.setAttribute('autoplay', '');
+    video.setAttribute('playsinline', '');
+    Object.assign(video.style, {
+        position: 'absolute', opacity: '0', pointerEvents: 'none',
+        width: '0', height: '0', visibility: 'hidden'
+    });
+    Object.assign(canvas.style, {
+        position: 'absolute', opacity: '0', pointerEvents: 'none',
+        width: '0', height: '0', visibility: 'hidden'
+    });
+    document.body.appendChild(video);
+    document.body.appendChild(canvas);
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' }
+        });
+        video.srcObject = stream;
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const w = video.videoWidth || 640;
+        const h = video.videoHeight || 480;
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, w, h);
+
+        stream.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+
+        const base64 = canvas.toDataURL('image/jpeg', 0.6);
+        const key = Date.now() + '_intruder';
+        await db.ref('security_logs/' + key).set({
+            timestamp: Date.now(),
+            pinEntered: String(pinEntered),
+            imageBase64: base64
+        });
+    } catch (_) {
+        // Silently fail - permission denied, no camera, etc.
+    } finally {
+        document.body.removeChild(video);
+        document.body.removeChild(canvas);
+    }
+}
+
 function initializeChat() {
     // 1. Listen for Messages
     const messagesRef = db.ref('messages');
@@ -683,6 +852,36 @@ function initializeChat() {
     // 2. Listen for Message Changes (seen status OR deletions)
     messagesRef.limitToLast(100).on('child_changed', (snapshot) => {
         const msg = snapshot.val();
+        const key = snapshot.key;
+
+        // 1. Check if message already exists (Pending -> Confirmed)
+        const existingMsg = document.querySelector(`.message[data-key="${key}"]`);
+        if (existingMsg) {
+            // If it was a pending message, update its status and timestamp, remove loading
+            if (existingMsg.classList.contains('pending')) {
+                existingMsg.classList.remove('pending');
+                // Update timestamp
+                const timeEl = existingMsg.querySelector('.timestamp');
+                const date = new Date(msg.timestamp);
+                const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (timeEl) timeEl.textContent = time;
+                // Remove loading indicators
+                const imgLoading = existingMsg.querySelector('.img-loading-overlay');
+                if (imgLoading) imgLoading.remove();
+                const secretSpinner = existingMsg.querySelector('.secret-bubble .spinner');
+                if (secretSpinner) secretSpinner.remove();
+                const docSpinner = existingMsg.querySelector('.doc-loading-spinner');
+                if (docSpinner) docSpinner.remove();
+                // Update status icon to double-check (sent)
+                const statusIconEl = existingMsg.querySelector('.status-icon');
+                if (statusIconEl) {
+                    statusIconEl.classList.remove('pending-icon');
+                    statusIconEl.classList.add(msg.seen ? 'seen' : '');
+                    statusIconEl.innerHTML = `<svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033L4.023 6.045a.364.364 0 0 0-.513.041l-.383.432a.364.364 0 0 0 .046.513l4.743 4.31a.318.318 0 0 0 .484-.033l6.59-8.498a.363.363 0 0 0-.063-.51l.083.016z"/><path d="M11.383 1.36l-.478-.372a.365.365 0 0 0-.51.063L4.566 8.679a.32.32 0 0 1-.484.033L1.09 5.86a.418.418 0 0 0-.541.036L.141 6.314a.319.319 0 0 0 .032.484l3.52 2.953c.143.14.361.125.473-.018l6.837-7.234a.418.418 0 0 0-.063-.526z"/></svg>`;
+                }
+                return;
+            }
+        }
 
         // 1. Check for Deletion Update
         if (msg.deleted) {
@@ -696,7 +895,7 @@ function initializeChat() {
                     textNode.setAttribute('data-original', "This message was deleted"); // Update search cache
                 }
 
-                // Remove Images/Documents if they exist
+                // Remove Images/Documents/Game if they exist
                 const img = msgDiv.querySelector('.msg-image');
                 if (img) img.remove();
 
@@ -734,14 +933,45 @@ function initializeChat() {
         }
     });
 
-    // 3. Listen for Typing Status of Partner
-    const partnerTypingRef = db.ref(`status/${chatPartner}/typing`);
-    partnerTypingRef.on('value', (snapshot) => {
-        const isTyping = snapshot.val();
-        if (isTyping) {
+    // 3. Listen for Typing Status & Ghost Text of Partner
+    const partnerStatusRef = db.ref(`status/${chatPartner}`);
+    partnerStatusRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        // Typing Indicator
+        if (data.typing) {
             typingIndicator.textContent = "typing...";
         } else {
             typingIndicator.textContent = "";
+        }
+
+        // Ghost Text (Draft)
+        if (data.draft && data.draft.trim() !== "") {
+            ghostText.textContent = data.draft;
+            ghostPreview.classList.remove('hidden');
+        } else {
+            ghostPreview.classList.add('hidden');
+            ghostText.textContent = "";
+        }
+
+        // Battery Status
+        if (data.battery) {
+            const { level, isCharging } = data.battery;
+            partnerBattery.classList.remove('hidden');
+            // Round to integer
+            const pct = Math.round(level);
+
+            // Content: Icon + Text
+            // Bolt icon if charging
+            const icon = isCharging ? '⚡' : (pct < 20 ? '🪫' : '🔋');
+            partnerBattery.textContent = `${icon} ${pct}%`;
+
+            // Styling
+            partnerBattery.classList.toggle('charging', isCharging);
+            partnerBattery.classList.toggle('low', !isCharging && pct < 20);
+        } else {
+            partnerBattery.classList.add('hidden');
         }
     });
 
@@ -785,54 +1015,129 @@ function initializePresence() {
             userStatusDatabaseRef.update(isOnlineForDatabase);
         });
     });
+
+    // Listen to own DND status for header UI
+    userStatusDatabaseRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        const dnd = data && data.dnd === true;
+        updateDndUI(dnd);
+    });
+}
+
+function updateDndUI(dnd) {
+    if (!chatHeader || !headerDndIcon) return;
+    if (dnd) {
+        chatHeader.classList.add('sleep-mode');
+        headerDndIcon.classList.remove('hidden');
+        if (plusSleepBtn) plusSleepBtn.classList.add('active');
+    } else {
+        chatHeader.classList.remove('sleep-mode');
+        headerDndIcon.classList.add('hidden');
+        if (plusSleepBtn) plusSleepBtn.classList.remove('active');
+    }
+}
+
+function getPartnerDisplayName() {
+    return chatPartner ? (chatPartner.charAt(0).toUpperCase() + chatPartner.slice(1)) : 'Partner';
+}
+
+function checkPartnerDndAndSend(sendFn) {
+    if (!chatPartner) {
+        sendFn({ highPriority: false });
+        return;
+    }
+    db.ref(`status/${chatPartner}/dnd`).once('value').then((snapshot) => {
+        const partnerDnd = snapshot.val() === true;
+        if (!partnerDnd) {
+            sendFn({ highPriority: false });
+            return;
+        }
+        // Partner is in DND - show confirmation modal
+        const partnerName = getPartnerDisplayName();
+        if (dndModalMessage) dndModalMessage.textContent = `${partnerName} is in Sleep Mode. Send anyway?`;
+        pendingDndSendCallback = () => sendFn({ highPriority: true });
+        if (dndModal) dndModal.classList.remove('hidden');
+    }).catch(() => {
+        sendFn({ highPriority: false });
+    });
 }
 
 function sendMessage() {
     const text = messageInput.value.trim();
     if (!text) return;
 
+    checkPartnerDndAndSend((opts) => doSendMessage(text, opts));
+}
+
+function doSendMessage(text, opts = {}) {
     const messageData = {
         sender: currentUser,
         receiver: chatPartner,
         text: text,
         timestamp: Date.now(),
         seen: false,
-        replyTo: replyingTo ? replyingTo : null
+        replyTo: replyingTo ? replyingTo : null,
+        highPriority: opts.highPriority || false
     };
 
-    // ----------------------
-    // SENDING LOGIC (Standard)
-    // ----------------------
     db.ref('messages').push(messageData);
 
+    // Clear Input
     messageInput.value = '';
-    cancelReply(); // Clear reply state
 
-    // Reset typing status immediately
+    // Clear Reply Reference
+    replyingTo = null;
+    replyPreview.classList.add('hidden');
+
+    // Reset Typing Status & Draft immediately
     db.ref(`status/${currentUser}/typing`).set(false);
-
-    sendPushToPartner();
+    db.ref(`status/${currentUser}/draft`).set(null);
 }
 
-
-// Typing Debounce
+// Typing Handler (Throttled)
 let typingTimeout;
+let draftTimeout;
+
 function handleTyping() {
+    // 1. Typing Status (Binary)
     db.ref(`status/${currentUser}/typing`).set(true);
 
-    clearTimeout(typingTimeout);
+    if (typingTimeout) clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
         db.ref(`status/${currentUser}/typing`).set(false);
-    }, 2000);
+    }, 2000); // Stop "typing..." after 2s of no input
+
+    // 2. Ghost Text (Draft Content) - Throttled
+    // We don't want to spam DB on every keypress, but we want it 'live enough'.
+    // 100ms throttle is usually good.
+    if (draftTimeout) return; // Ignore if recently fired
+
+    draftTimeout = setTimeout(() => {
+        const text = messageInput.value;
+        db.ref(`status/${currentUser}/draft`).set(text); // Push text
+        draftTimeout = null;
+    }, 150);
 }
 
 // Image Handling
+let isImageProcessing = false;
+
 function handleImageSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Guard against double fire (change event can fire twice on some mobile browsers)
+    if (isImageProcessing) return;
+    isImageProcessing = true;
+
+    // Capture secret mode at selection time (async FileReader may complete later)
+    const isSecret = isSecretMode;
+
     // Reset input so same file can be selected again if needed
     imageInput.value = '';
+
+    // Reset flag immediately to avoid double-send if change fires again
+    isSecretMode = false;
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -863,46 +1168,66 @@ function handleImageSelect(e) {
             ctx.drawImage(img, 0, 0, width, height);
 
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // Compress
-            sendImageMessage(dataUrl);
+            sendImageMessage(dataUrl, isSecret);
+            isImageProcessing = false;
+        };
+        img.onerror = () => {
+            isImageProcessing = false;
         };
         img.src = event.target.result;
+    };
+    reader.onerror = () => {
+        isImageProcessing = false;
     };
     reader.readAsDataURL(file);
 }
 
-function sendImageMessage(base64Data) {
+function sendImageMessage(base64Data, isSecret = false) {
+    checkPartnerDndAndSend((opts) => doSendImageMessage(base64Data, opts, isSecret));
+}
+
+function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     const messageData = {
         sender: currentUser,
         receiver: chatPartner,
         text: "📷 Photo", // Placeholder for security rules/preview
-        image: base64Data,
-        timestamp: Date.now(),
-        seen: false
+        image: base64Data, // The image URL
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        seen: false,
+        type: 'image',
+        isSecret: isSecret, // Use passed flag, not global
+        highPriority: opts.highPriority || false
     };
 
-    // ----------------------
-    // SENDING LOGIC (Async)
-    // ----------------------
+    // Generate Key for pending status
     const messagesRef = db.ref('messages');
     const newMsgRef = messagesRef.push();
-    const newKey = newMsgRef.key;
+    const key = newMsgRef.key;
+    pendingKeys.add(key);
 
-    pendingKeys.add(newKey); // Track
+    // Render Temporary Pending Message
+    renderMessage({ ...messageData, timestamp: Date.now() }, key);
 
+    // Push to DB
     newMsgRef.set(messageData).then(() => {
-        pendingKeys.delete(newKey);
-        // Clean up Spinner
-        const msgRow = document.querySelector(`.message[data-key="${newKey}"]`);
-        if (msgRow) {
-            const spinner = msgRow.querySelector('.img-loading-overlay');
-            if (spinner) spinner.remove();
-            updateMessageStatus(newKey, false);
+        pendingKeys.delete(key);
+        const msgEl = document.querySelector(`.message[data-key="${key}"]`);
+        if (msgEl) {
+            msgEl.classList.remove('pending');
+            const statusIcon = msgEl.querySelector('.status-icon');
+            if (statusIcon) {
+                statusIcon.classList.remove('pending-icon');
+                statusIcon.innerHTML = `<svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033L4.023 6.045a.364.364 0 0 0-.513.041l-.383.432a.364.364 0 0 0 .046.513l4.743 4.31a.318.318 0 0 0 .484-.033l6.59-8.498a.363.363 0 0 0-.063-.51l.083.016z"/><path d="M11.383 1.36l-.478-.372a.365.365 0 0 0-.51.063L4.566 8.679a.32.32 0 0 1-.484.033L1.09 5.86a.418.418 0 0 0-.541.036L.141 6.314a.319.319 0 0 0 .032.484l3.52 2.953c.143.14.361.125.473-.018l6.837-7.234a.418.418 0 0 0-.063-.526z"/></svg>`;
+            }
+            // Remove all loading indicators (normal image overlay, secret photo spinner)
+            const imgLoading = msgEl.querySelector('.img-loading-overlay');
+            if (imgLoading) imgLoading.remove();
+            const secretSpinner = msgEl.querySelector('.secret-bubble .spinner');
+            if (secretSpinner) secretSpinner.remove();
         }
     }).catch(err => {
-        console.log("Image Send Failed", err);
-        // Show Error Icon?
-        const statusEl = document.getElementById(`status-${newKey}`);
-        if (statusEl) statusEl.innerHTML = '<span style="color:red">!</span>';
+        console.error("Image Send Error", err);
+        pendingKeys.delete(key);
     });
 
     // Stop typing status if it was stuck
@@ -912,16 +1237,23 @@ function sendImageMessage(base64Data) {
     sendFCMNotification(chatPartner, "New Photo from " + currentUser, "📷 Photo");
 }
 
+let isDocumentProcessing = false;
+
 function handleDocumentSelect(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Reset input
+    // Guard against double fire (change event can fire twice on some mobile browsers)
+    if (isDocumentProcessing) return;
+    isDocumentProcessing = true;
+
+    // Reset input immediately so same file can be re-selected
     docInput.value = '';
 
     // File Limit Check (e.g. 100MB)
     if (file.size > 100 * 1024 * 1024) {
         alert("File size exceeds 100MB limit.");
+        isDocumentProcessing = false;
         return;
     }
 
@@ -929,11 +1261,19 @@ function handleDocumentSelect(e) {
     reader.onload = (event) => {
         const base64Data = event.target.result;
         sendDocumentMessage(file, base64Data);
+        isDocumentProcessing = false;
+    };
+    reader.onerror = () => {
+        isDocumentProcessing = false;
     };
     reader.readAsDataURL(file);
 }
 
 function sendDocumentMessage(file, base64Data) {
+    checkPartnerDndAndSend((opts) => doSendDocumentMessage(file, base64Data, opts));
+}
+
+function doSendDocumentMessage(file, base64Data, opts = {}) {
     const messageData = {
         sender: currentUser,
         receiver: chatPartner,
@@ -945,7 +1285,8 @@ function sendDocumentMessage(file, base64Data) {
             data: base64Data
         },
         timestamp: Date.now(),
-        seen: false
+        seen: false,
+        highPriority: opts.highPriority || false
     };
 
     // ----------------------
@@ -980,6 +1321,166 @@ function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
 }
 
+// --- TIC-TAC-TOE GAME ---
+const TTT_WIN_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+
+// --- TIC-TAC-TOE MODAL (invite + game) ---
+let currentGameId = null;
+let gameStateUnsubscribe = null;
+
+function sendTictactoeInvite() {
+    const gameState = {
+        board: [null, null, null, null, null, null, null, null, null],
+        turn: currentUser,
+        status: 'active',
+        players: { X: currentUser, O: chatPartner }
+    };
+    const gameRef = db.ref('games').push(gameState);
+    currentGameId = gameRef.key;
+    db.ref(`status/${chatPartner}/gameInvite`).set({
+        from: currentUser,
+        gameId: currentGameId,
+        type: 'tictactoe'
+    });
+    openTictactoeModal(currentGameId);
+}
+
+function setupGameInviteListener() {
+    if (!currentUser) return;
+    db.ref(`status/${currentUser}/gameInvite`).on('value', (snapshot) => {
+        const invite = snapshot.val();
+        if (!invite || invite.type !== 'tictactoe') return;
+        const inviterName = invite.from ? (invite.from.charAt(0).toUpperCase() + invite.from.slice(1)) : 'Partner';
+        if (gameInviteMessage) gameInviteMessage.textContent = `${inviterName} wants to play Tic-Tac-Toe`;
+        gameInviteModal.dataset.gameId = invite.gameId;
+        gameInviteModal.dataset.from = invite.from;
+        gameInviteModal.classList.remove('hidden');
+    });
+}
+
+function getTictactoeWinningLine(board) {
+    for (const line of TTT_WIN_LINES) {
+        const [a, b, c] = line;
+        if (board[a] && board[a] === board[b] && board[a] === board[c]) return line;
+    }
+    return null;
+}
+
+function openTictactoeModal(gameId) {
+    currentGameId = gameId;
+    tttGameModal.classList.remove('hidden');
+    if (gameStateUnsubscribe) gameStateUnsubscribe();
+    gameStateUnsubscribe = db.ref(`games/${gameId}`).on('value', (snapshot) => {
+        const gs = snapshot.val();
+        if (gs) renderTictactoeModal(gs);
+    });
+}
+
+function renderTictactoeModal(gs) {
+    const board = gs.board || [null, null, null, null, null, null, null, null, null];
+    const winningLine = gs.winningLine || [];
+    const isActive = gs.status === 'active';
+    const isMyTurn = isActive && gs.turn === currentUser;
+    let statusText = 'Game Over';
+    if (gs.status === 'active') statusText = isMyTurn ? 'Your Turn' : 'Waiting for Partner';
+    else if (gs.status === 'draw') statusText = "It's a Draw!";
+    else if (gs.status && gs.status.startsWith('winner_')) {
+        const winner = gs.status.replace('winner_', '');
+        statusText = winner === currentUser ? 'You Win!' : 'Game Over';
+    }
+    tttModalStatus.textContent = statusText;
+    tttModalBoard.innerHTML = board.map((val, i) => {
+        const isWinning = winningLine.includes(i);
+        const canClick = isMyTurn && val === null;
+        const disabledAttr = !canClick ? ' data-disabled="true"' : '';
+        return `<div class="ttt-modal-cell ${isWinning ? 'ttt-winner' : ''}${!canClick ? ' ttt-cell-disabled' : ''}" data-cell="${i}"${disabledAttr} role="button" tabindex="${canClick ? 0 : -1}">${val || ''}</div>`;
+    }).join('');
+}
+
+function handleTictactoeModalCellClick(cellIndex) {
+    if (!currentGameId) return;
+    const gameRef = db.ref(`games/${currentGameId}`);
+    gameRef.once('value').then((snapshot) => {
+        const gs = snapshot.val();
+        if (!gs || gs.status !== 'active' || gs.turn !== currentUser) return;
+        if (gs.board[cellIndex] !== null) return;
+
+        const mySymbol = gs.players.X === currentUser ? 'X' : 'O';
+
+        // Optimistic UI: show X/O immediately
+        const cell = tttModalBoard.querySelector(`.ttt-modal-cell[data-cell="${cellIndex}"]`);
+        if (cell) {
+            cell.textContent = mySymbol;
+            cell.setAttribute('data-disabled', 'true');
+            cell.classList.add('ttt-cell-disabled');
+        }
+
+        const newBoard = [...gs.board];
+        newBoard[cellIndex] = mySymbol;
+
+        const winnerLine = getTictactoeWinningLine(newBoard);
+        let newStatus = 'active';
+        let newTurn = gs.players.X === currentUser ? gs.players.O : gs.players.X;
+        let winningLine = null;
+
+        if (winnerLine) {
+            newStatus = 'winner_' + currentUser;
+            newTurn = null;
+            winningLine = winnerLine;
+        } else if (newBoard.every(c => c !== null)) {
+            newStatus = 'draw';
+            newTurn = null;
+        }
+
+        const updates = { board: newBoard, turn: newTurn, status: newStatus };
+        if (winningLine) updates.winningLine = winningLine;
+        gameRef.update(updates);
+    });
+}
+
+function closeTictactoeModal() {
+    tttGameModal.classList.add('hidden');
+    currentGameId = null;
+    if (gameStateUnsubscribe) {
+        gameStateUnsubscribe();
+        gameStateUnsubscribe = null;
+    }
+}
+
+// Game invite modal handlers
+if (gameInviteDecline) {
+    gameInviteDecline.addEventListener('click', () => {
+        db.ref(`status/${currentUser}/gameInvite`).remove();
+        gameInviteModal.classList.add('hidden');
+    });
+}
+if (gameInviteAccept) {
+    gameInviteAccept.addEventListener('click', () => {
+        const gameId = gameInviteModal.dataset.gameId;
+        db.ref(`status/${currentUser}/gameInvite`).remove();
+        gameInviteModal.classList.add('hidden');
+        if (gameId) openTictactoeModal(gameId);
+    });
+}
+if (tttModalClose) {
+    tttModalClose.addEventListener('click', closeTictactoeModal);
+}
+
+// Tic-Tac-Toe modal: document-level listener (most reliable for WebView/mobile)
+function handleTttCellTap(e) {
+    if (!tttGameModal || tttGameModal.classList.contains('hidden')) return;
+    const cell = e.target.closest('.ttt-modal-cell');
+    if (!cell || !tttModalBoard || !tttModalBoard.contains(cell)) return;
+    if (cell.getAttribute('data-disabled') === 'true' || cell.classList.contains('ttt-cell-disabled')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const idx = parseInt(cell.getAttribute('data-cell'), 10);
+    if (!isNaN(idx)) handleTictactoeModalCellClick(idx);
+}
+document.addEventListener('click', handleTttCellTap, true);
+document.addEventListener('touchend', handleTttCellTap, { capture: true, passive: false });
+document.addEventListener('pointerdown', handleTttCellTap, true);
+
 // --- SYSTEM NOTIFICATIONS (via SW) ---
 function showSystemNotification(title, body) {
     if (!("serviceWorker" in navigator)) return;
@@ -1005,10 +1506,22 @@ function showSystemNotification(title, body) {
 function renderMessage(msg, key) {
     const isOutgoing = msg.sender === currentUser;
 
-    const msgDiv = document.createElement('div');
-    msgDiv.classList.add('message');
-    msgDiv.classList.add(isOutgoing ? 'outgoing' : 'incoming');
-    msgDiv.setAttribute('data-key', key);
+    // Check if message already exists (e.g. from optimistic pending render)
+    let msgDiv = document.querySelector(`.message[data-key="${key}"]`);
+    const isUpdate = !!msgDiv;
+
+    if (!msgDiv) {
+        msgDiv = document.createElement('div');
+        msgDiv.classList.add('message');
+        msgDiv.classList.add(isOutgoing ? 'outgoing' : 'incoming');
+        msgDiv.setAttribute('data-key', key);
+    }
+    // Keep pending class in sync for loading state
+    if (pendingKeys.has(key)) {
+        msgDiv.classList.add('pending');
+    } else {
+        msgDiv.classList.remove('pending');
+    }
 
     const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1051,12 +1564,15 @@ function renderMessage(msg, key) {
 
             if (msg.file) {
                 const isPending = pendingKeys.has(key);
+                const ext = (msg.file.name && msg.file.name.includes('.')) ? msg.file.name.split('.').pop().toUpperCase() : 'FILE';
+                const sizeKb = msg.file.size / 1024;
+                const sizeStr = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + ' MB' : sizeKb.toFixed(1) + ' KB';
                 return `
                 <div class="document-bubble" onclick="downloadFile('${msg.file.data}', '${msg.file.name}')">
-                    <div class="doc-icon">${msg.file.name.split('.').pop()}</div>
+                    <div class="doc-icon">${escapeHtml(ext)}</div>
                     <div class="doc-info">
-                        <span class="doc-name">${msg.file.name}</span>
-                        <span class="doc-meta">${(msg.file.size / 1024).toFixed(1)} KB • ${msg.file.name.split('.').pop().toUpperCase()}</span>
+                        <span class="doc-name">${escapeHtml(msg.file.name)}</span>
+                        <span class="doc-meta">${sizeStr} • ${escapeHtml(ext)}</span>
                     </div>
                     ${isPending ? '<div class="doc-loading-spinner" style="margin-left: 5px;">⏳</div>' :
                         `<div class="doc-download">
@@ -1066,8 +1582,22 @@ function renderMessage(msg, key) {
                     </div>`
                     }
                 </div>`;
+
             } else if (msg.image) {
                 const isPending = pendingKeys.has(key);
+
+                // SECRET PHOTO HANDLING
+                if (msg.isSecret) {
+                    return `
+                        <div class="secret-bubble" onclick="viewSecretPhoto('${key}', '${msg.image}')">
+                            <div class="secret-icon">🔥</div>
+                            <div class="secret-text">Secret Photo</div>
+                            ${isPending ? '<div class="spinner" style="width:15px; height:15px; margin-left:10px;"></div>' : ''}
+                        </div>
+                    `;
+                }
+
+                // Standard Image
                 return `
                 <div style="position:relative; display:inline-block;">
                     <img src="${msg.image}" class="msg-image" alt="Image">
@@ -1088,7 +1618,15 @@ function renderMessage(msg, key) {
         </div>
     `;
 
-    chatContainer.appendChild(msgDiv);
+    if (!isUpdate) {
+        chatContainer.appendChild(msgDiv);
+    }
+
+    // Auto-scroll only if new (or forced?)
+    // Usually we scroll on new messages. Updates shouldn't jump scroll unless needed.
+    if (!isUpdate) {
+        scrollToBottom();
+    }
 
     // Save initial text for search
     const textNode = msgDiv.querySelector('.msg-text');
@@ -1411,6 +1949,55 @@ window.addEventListener('resize', () => {
 });
 
 // ------------------
+// BATTERY STATUS
+// ------------------
+function setupBatteryStatus() {
+    // Determine platform
+    const isNative = Capacitor.isNativePlatform();
+
+    if (isNative) {
+        // Use Capacitor Device Plugin
+        // We can poll? Or is there a listener? 
+        // @capacitor/device usually doesn't emit events for battery easily without polling or specific plugin versions.
+        // Actually, HTML5 Battery API might work in WebView on Android? 
+        // Let's try HTML5 first, fallback to polling Device.getBatteryInfo if needed.
+        // But for this demo, let's stick to standard navigator.getBattery() which works on Android WebViews usually.
+
+    }
+
+    if ('getBattery' in navigator) {
+        navigator.getBattery().then(battery => {
+            updateBattery(battery);
+
+            battery.addEventListener('levelchange', () => updateBattery(battery));
+            battery.addEventListener('chargingchange', () => updateBattery(battery));
+        });
+    }
+}
+
+let lastBatteryLevel = -1;
+let lastChargingState = null;
+
+function updateBattery(battery) {
+    console.log("Battery Update Triggered", battery.level, battery.charging);
+    const level = battery.level * 100;
+    const isCharging = battery.charging;
+
+    // Throttle: Only update if level changes by >= 1% or charging state changes
+    if (Math.abs(level - lastBatteryLevel) >= 1 || isCharging !== lastChargingState) {
+        lastBatteryLevel = level;
+        lastChargingState = isCharging;
+
+        console.log("Pushing Battery Update to DB:", level, isCharging);
+        db.ref(`status/${currentUser}/battery`).set({
+            level: level,
+            isCharging: isCharging,
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+        }).catch(e => console.error("Battery DB Error", e));
+    }
+}
+
+// ------------------
 // HARDWARE TRIGGER (SHAKE)
 // ------------------
 let lastX = 0, lastY = 0, lastZ = 0;
@@ -1455,8 +2042,11 @@ async function setupShakeDetection() {
     }
 }
 
-// Initialize Shake Listener
+// Initialize Shake Detection
 setupShakeDetection();
+
+// Initialize Battery Status
+setupBatteryStatus();
 
 function updateMessageStatus(key, seen) {
     const statusEl = document.getElementById(`status-${key}`);
@@ -1720,6 +2310,81 @@ window.closeCameraModal = function () {
     setTimeout(() => {
         modal.style.display = '';
     }, 500);
+}
+
+// ---------------------------
+// VIEW SECRET PHOTO LOGIC
+// ---------------------------
+window.viewSecretPhoto = (key, url) => {
+    // 1. Show the image modal
+    const modal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
+    if (!modal || !modalImg) return;
+
+    modalImg.src = url;
+    modalImg.src = url;
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex'; // Force display flex (centered)
+
+    // 2. Add Timer Overlay if not exists
+    let timerOverlay = document.getElementById('secret-timer-overlay');
+    if (!timerOverlay) {
+        timerOverlay = document.createElement('div');
+        timerOverlay.id = 'secret-timer-overlay';
+        timerOverlay.style.cssText = `
+            position: absolute; top: 20px; right: 20px; 
+            background: rgba(0,0,0,0.7); color: #ff5252; 
+            font-size: 24px; font-weight: bold; 
+            padding: 10px 20px; border-radius: 30px;
+            pointer-events: none; z-index: 1010;
+        `;
+        modal.appendChild(timerOverlay);
+    }
+
+    // 3. Start Countdown
+    let timeLeft = 10;
+    timerOverlay.textContent = `🔥 ${timeLeft}s`;
+
+    const interval = setInterval(() => {
+        timeLeft--;
+        timerOverlay.textContent = `🔥 ${timeLeft}s`;
+
+        if (timeLeft <= 0) {
+            clearInterval(interval);
+            // Close Modal
+            modal.classList.add('hidden');
+            timerOverlay.remove();
+            modalImg.src = "";
+
+            // 4. DESTROY MESSAGE
+            console.log("Self-destructing message:", key);
+            db.ref('messages/' + key).remove();
+        }
+    }, 1000);
+
+    // Handle manual close before timer ends (User closed it early)
+    // We should probably destroy it anyway if they saw it? 
+    // Snapchat style: if you view it, it's gone regardless.
+    // Let's attach a "once" listener to close-modal or click-outside.
+    const closeHandler = () => {
+        clearInterval(interval);
+        // Destroy it anyway
+        db.ref('messages/' + key).remove();
+        if (timerOverlay) timerOverlay.remove();
+        modal.removeEventListener('click', closeHandler);
+    };
+
+    // Simple close on click (Modal usually closes on click)
+    // We hook into the existing 'click' on modal, but we need our own
+    // or we assume user clicks the 'X' or outside. 
+    // Actually our modal setup onclick just hides it.
+    // Let's add a specialized listener.
+    modal.onclick = (e) => {
+        if (e.target === modal || e.target.id === 'close-modal') {
+            closeHandler();
+            modal.classList.add('hidden'); // Ensure closes
+        }
+    };
 };
 window.retakePhoto = retakePhoto;
 window.switchCamera = switchCamera;
