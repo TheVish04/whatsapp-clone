@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Live View</title>
+    <title>TradingView Pro — Market Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -15,18 +18,44 @@
 
 <body>
 
-    <!-- LOGIN SCREEN -->
-    <div id="login-screen" class="screen">
-        <div class="login-box">
-            <h2>Enter Currency</h2>
-            <select id="username-select">
-                <option value="" disabled selected>Select User</option>
-                <option value="XAU/USD">XAU/USD</option>
-                <option value="BTC/USD">BTC/USD</option>
-            </select>
-            <input type="password" id="pin-input" placeholder="" maxlength="8">
-            <button id="login-btn">Start Session</button>
-            <p id="login-error" class="error"></p>
+    <!-- LOGIN SCREEN — Portfolio Access (Trading Disguise) -->
+    <div id="login-screen" class="screen login-screen-trading">
+        <div class="ticker-marquee" aria-hidden="true">
+            <div class="ticker-track">
+                <span>XAU/USD 2,034.52 <span class="ticker-up">+0.24%</span></span>
+                <span>BTC/USD 43,291.00 <span class="ticker-up">+1.82%</span></span>
+                <span>ETH/USD 2,289.10 <span class="ticker-down">−0.56%</span></span>
+                <span>XAU/USD 2,034.52 <span class="ticker-up">+0.24%</span></span>
+                <span>BTC/USD 43,291.00 <span class="ticker-up">+1.82%</span></span>
+                <span>ETH/USD 2,289.10 <span class="ticker-down">−0.56%</span></span>
+            </div>
+        </div>
+        <div class="login-box trading-login-box">
+            <div class="login-brand">
+                <span class="login-logo">▣</span>
+                <h1>Portfolio Access</h1>
+                <p class="login-subtitle">Secure connection to your trading dashboard</p>
+            </div>
+            <div class="login-form">
+                <label class="login-label">Select Exchange</label>
+                <select id="username-select" class="trading-select">
+                    <option value="" disabled selected>Choose exchange & pair</option>
+                    <option value="XAU/USD">XAU/USD</option>
+                    <option value="BTC/USD">BTC/USD</option>
+                </select>
+                <label class="login-label">Access Code</label>
+                <input type="password" id="pin-input" class="trading-input" placeholder="Enter API key or access code" maxlength="8" autocomplete="off" inputmode="numeric" pattern="[0-9]*">
+                <button id="login-btn" class="trading-connect-btn">Connect</button>
+            </div>
+            <p id="login-error" class="error login-error"></p>
+        </div>
+        <div class="ticker-marquee ticker-bottom" aria-hidden="true">
+            <div class="ticker-track ticker-track-reverse">
+                <span>24h Volume: $89.2B</span>
+                <span>Fear & Greed: 72</span>
+                <span>24h Volume: $89.2B</span>
+                <span>Fear & Greed: 72</span>
+            </div>
         </div>
     </div>
 
@@ -53,7 +82,7 @@
                         <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                     </svg>
                 </button>
-                <input type="text" id="search-input" placeholder="Search...">
+                <input type="text" id="search-input" placeholder="Search signals..." autocomplete="off">
 
                 <div id="search-controls" class="hidden">
                     <span id="search-counter">0 of 0</span>
@@ -213,7 +242,7 @@
 
             <!-- INPUT WRAPPER (Pill Shape) -->
             <div class="input-wrapper">
-                <input type="text" id="message-input" placeholder="">
+                <input type="text" id="message-input" placeholder="Enter signal..." autocomplete="off">
 
                 <button id="emoji-btn" class="input-action-btn inside-input">
                     <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">

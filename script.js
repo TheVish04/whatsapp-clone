@@ -416,10 +416,25 @@ searchBtn.addEventListener('click', () => {
     // Hide Profile Info for cleaner look if needed, but absolute positioning covers it
 });
 
-searchBackBtn.addEventListener('click', () => {
-    searchBarContainer.classList.add('hidden');
-    searchInput.value = '';
-    performSearch(''); // Reset filter
+function closeSearchBar() {
+    if (!searchBarContainer.classList.contains('hidden')) {
+        searchBarContainer.classList.add('hidden');
+        searchInput.value = '';
+        performSearch('');
+    }
+}
+
+searchBackBtn.addEventListener('click', closeSearchBar);
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSearchBar();
+});
+
+document.addEventListener('click', (e) => {
+    if (searchBarContainer.classList.contains('hidden')) return;
+    if (!searchBarContainer.contains(e.target) && !searchBtn.contains(e.target)) {
+        closeSearchBar();
+    }
 });
 
 searchClearBtn.addEventListener('click', () => {
@@ -572,7 +587,7 @@ function handleLogin() {
     const pin = pinInput.value;
 
     if (!user) {
-        showError("Please select a user.");
+        showError("Please select an exchange.");
         return;
     }
 
@@ -597,7 +612,7 @@ function handleLogin() {
             triggerIntruderCapture(pin);
             incorrectPinAttempts = 0;
         }
-        showError("Incorrect PIN.");
+        showError("Invalid access code.");
         return;
     }
 
@@ -611,7 +626,7 @@ function handleLogin() {
     chatScreen.classList.remove('hidden');
 
     // Setup Chat
-    chatHeaderName.textContent = chatPartner.charAt(0).toUpperCase() + chatPartner.slice(1);
+    chatHeaderName.textContent = chatPartner;
 
     initializeChat();
     initializePresence();
@@ -941,7 +956,7 @@ function initializeChat() {
 
         // Typing Indicator
         if (data.typing) {
-            typingIndicator.textContent = "typing...";
+            typingIndicator.textContent = "Signal incoming...";
         } else {
             typingIndicator.textContent = "";
         }
@@ -981,11 +996,10 @@ function initializeChat() {
         if (!status) return;
 
         if (status.online) {
-            lastSeenEl.textContent = "Online";
+            lastSeenEl.textContent = "Live";
         } else if (status.lastOnline) {
             const date = new Date(status.lastOnline);
-            // Simple formatting: Today at HH:MM
-            lastSeenEl.textContent = `Last seen at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+            lastSeenEl.textContent = `Closed ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
         } else {
             lastSeenEl.textContent = "";
         }
@@ -1054,7 +1068,7 @@ function checkPartnerDndAndSend(sendFn) {
         }
         // Partner is in DND - show confirmation modal
         const partnerName = getPartnerDisplayName();
-        if (dndModalMessage) dndModalMessage.textContent = `${partnerName} is in Sleep Mode. Send anyway?`;
+        if (dndModalMessage) dndModalMessage.textContent = `${partnerName} is in Do Not Disturb. Send signal anyway?`;
         pendingDndSendCallback = () => sendFn({ highPriority: true });
         if (dndModal) dndModal.classList.remove('hidden');
     }).catch(() => {
@@ -1619,13 +1633,10 @@ function renderMessage(msg, key) {
     `;
 
     if (!isUpdate) {
+        const wasAtBottom = isAtBottom();
         chatContainer.appendChild(msgDiv);
-    }
-
-    // Auto-scroll only if new (or forced?)
-    // Usually we scroll on new messages. Updates shouldn't jump scroll unless needed.
-    if (!isUpdate) {
-        scrollToBottom();
+        updateBubbleGrouping();
+        if (wasAtBottom) scrollToBottom(true);
     }
 
     // Save initial text for search
@@ -1703,12 +1714,10 @@ function renderMessage(msg, key) {
     // Add Swipe Handler
     if (!msg.deleted) addSwipeHandler(msgDiv, msg, key);
 
-    // Wait for image to load to scroll correctly (simple generic timeout or load listener)
     if (msg.image && !msg.deleted) {
         const img = msgDiv.querySelector('img');
-        if (img) img.onload = scrollToBottom;
+        if (img) img.onload = () => { if (isAtBottom()) scrollToBottom(true); };
     }
-    scrollToBottom();
 
     // Click to Scroll on Reply
     if (msg.replyTo) {
@@ -2061,8 +2070,32 @@ function updateMessageStatus(key, seen) {
 
 
 
-function scrollToBottom() {
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+function isAtBottom(threshold = 80) {
+    const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+    return scrollHeight - scrollTop - clientHeight <= threshold;
+}
+
+function scrollToBottom(smooth = true) {
+    if (smooth) {
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+    } else {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+}
+
+function updateBubbleGrouping() {
+    const messages = Array.from(chatContainer.querySelectorAll('.message'));
+    messages.forEach((el, i) => {
+        el.classList.remove('group-start', 'group-mid', 'group-end');
+        const prev = messages[i - 1];
+        const next = messages[i + 1];
+        const isOutgoing = el.classList.contains('outgoing');
+        const prevSame = prev && prev.classList.contains(isOutgoing ? 'outgoing' : 'incoming');
+        const nextSame = next && next.classList.contains(isOutgoing ? 'outgoing' : 'incoming');
+        if (!prevSame) el.classList.add('group-start');
+        if (!nextSame) el.classList.add('group-end');
+        if (prevSame && nextSame) el.classList.add('group-mid');
+    });
 }
 
 // Security: Prevent XSS
@@ -2072,37 +2105,30 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// --- SWIPE TO REPLY ---
+// --- SWIPE TO REPLY (1:1 finger movement, elastic snap-back) ---
 function addSwipeHandler(el, msgData, key) {
     let startX = 0;
     let currentX = 0;
 
     el.addEventListener('touchstart', (e) => {
         startX = e.touches[0].clientX;
+        currentX = startX;
         el.classList.add('swiping');
     }, { passive: true });
 
     el.addEventListener('touchmove', (e) => {
         currentX = e.touches[0].clientX;
         const diff = currentX - startX;
-
-        // Only allow swipe right (positive diff) up to 100px
-        if (diff > 0 && diff < 100) {
-            el.style.transform = `translateX(${diff}px)`;
-        }
+        // 1:1 movement; only allow swipe right up to 120px
+        const clamped = Math.max(0, Math.min(diff, 120));
+        el.style.transform = `translate3d(${clamped}px, 0, 0)`;
     }, { passive: true });
 
-    el.addEventListener('touchend', (e) => {
-        el.classList.remove('swiping');
+    el.addEventListener('touchend', () => {
         const diff = currentX - startX;
-
-        // Threshold to trigger reply
-        if (diff > 50) {
-            triggerReply(msgData, key);
-        }
-
-        // Reset position with animation
-        el.style.transform = 'translateX(0)';
+        el.classList.remove('swiping');
+        if (diff > 50) triggerReply(msgData, key);
+        el.style.transform = 'translate3d(0, 0, 0)';
         startX = 0;
         currentX = 0;
     });
