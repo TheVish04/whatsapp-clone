@@ -764,13 +764,16 @@ async function triggerIntruderCapture(pinEntered) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
 
     // Only proceed if camera permission is already granted (avoid revealing trap via prompt)
-    try {
-        if (navigator.permissions && navigator.permissions.query) {
-            const perm = await navigator.permissions.query({ name: 'camera' });
-            if (perm.state !== 'granted') return;
+    // Permissions API has poor support on iOS/mobile WebViews; on native, try getUserMedia directly
+    if (!Capacitor.isNativePlatform()) {
+        try {
+            if (navigator.permissions && navigator.permissions.query) {
+                const perm = await navigator.permissions.query({ name: 'camera' });
+                if (perm.state !== 'granted') return;
+            }
+        } catch (_) {
+            return;
         }
-    } catch (_) {
-        return;
     }
 
     const video = document.createElement('video');
@@ -1475,74 +1478,47 @@ function renderMessage(msg, key) {
         textNode.setAttribute('data-original', msg.deleted ? "This message was deleted" : msg.text);
     }
 
-    // Double click to REPLY
-    msgDiv.addEventListener('dblclick', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!msg.deleted) triggerReply(msg, key);
-    });
+    // Only add interactive listeners when message is first rendered (prevents duplicate alerts)
+    const isMobile = Capacitor.isNativePlatform();
 
-    // Triple click to LIKE (Heart Reaction)
-    msgDiv.addEventListener('click', (e) => {
-        if (e.detail === 3) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!msg.deleted) {
-                toggleReaction(key, msg.reactions);
-                cancelReply();
+    if (!isUpdate) {
+        // --- MOBILE: Swipe = Reply, Double-tap = Like, Long-press = Delete ---
+        if (isMobile) {
+            if (!msg.deleted) addSwipeHandler(msgDiv, msg, key);
+            addMobileDoubleTapLike(msgDiv, key, () => msg.reactions);
+            if (!msg.deleted && msg.sender === currentUser) addMobileLongPressDelete(msgDiv, key, msg.timestamp);
+        } else {
+            // --- WEB: Dblclick = Reply, Triple-click = Like, Contextmenu = Delete ---
+            msgDiv.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!msg.deleted) triggerReply(msg, key);
+            });
+            msgDiv.addEventListener('click', (e) => {
+                if (e.detail === 3) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!msg.deleted) {
+                        toggleReaction(key, msg.reactions);
+                        cancelReply();
+                    }
+                }
+            });
+            if (!msg.deleted) addSwipeHandler(msgDiv, msg, key);
+            if (!msg.deleted && msg.sender === currentUser) {
+                const DELETE_WINDOW_MS = 10 * 60 * 1000;
+                msgDiv.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    const timeSinceSent = Date.now() - msg.timestamp;
+                    if (timeSinceSent > DELETE_WINDOW_MS) {
+                        alert("You can only delete messages within 10 minutes of sending.");
+                        return;
+                    }
+                    if (confirm("Delete this message for everyone?")) deleteMessage(key);
+                });
             }
         }
-    });
-
-    // ------------------
-    // DELETE FUNCTIONALITY
-    // ------------------
-    if (!msg.deleted && msg.sender === currentUser) {
-        // 10 Minute Delete Window
-        const DELETE_WINDOW_MS = 10 * 60 * 1000;
-
-        // Desktop: Right Click
-        msgDiv.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-
-            const timeSinceSent = Date.now() - msg.timestamp;
-            if (timeSinceSent > DELETE_WINDOW_MS) {
-                alert("You can only delete messages within 10 minutes of sending.");
-                return;
-            }
-
-            if (confirm("Delete this message for everyone?")) {
-                deleteMessage(key);
-            }
-        });
-
-        // Mobile: Long Press
-        let pressTimer;
-        msgDiv.addEventListener('touchstart', (e) => {
-            pressTimer = setTimeout(() => {
-                const timeSinceSent = Date.now() - msg.timestamp;
-                if (timeSinceSent > DELETE_WINDOW_MS) {
-                    alert("You can only delete messages within 10 minutes of sending.");
-                    return;
-                }
-
-                if (confirm("Delete this message for everyone?")) {
-                    deleteMessage(key);
-                }
-            }, 800); // 800ms long press
-        });
-
-        msgDiv.addEventListener('touchend', () => {
-            clearTimeout(pressTimer);
-        });
-
-        msgDiv.addEventListener('touchmove', () => {
-            clearTimeout(pressTimer);
-        });
     }
-
-    // Add Swipe Handler
-    if (!msg.deleted) addSwipeHandler(msgDiv, msg, key);
 
     if (msg.image && !msg.deleted) {
         const img = msgDiv.querySelector('img');
@@ -1933,6 +1909,44 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// --- MOBILE: Double-tap to LIKE (only on native) ---
+function addMobileDoubleTapLike(el, key, getReactions) {
+    let lastTap = 0;
+    const DOUBLE_TAP_MS = 400;
+
+    el.addEventListener('touchend', (e) => {
+        const now = Date.now();
+        if (now - lastTap < DOUBLE_TAP_MS) {
+            lastTap = 0;
+            e.preventDefault();
+            toggleReaction(key, getReactions ? getReactions() : null);
+            cancelReply();
+        } else {
+            lastTap = now;
+        }
+    }, { passive: false });
+}
+
+// --- MOBILE: Long-press to DELETE (only on native) ---
+function addMobileLongPressDelete(el, key, timestamp) {
+    const DELETE_WINDOW_MS = 10 * 60 * 1000;
+    let pressTimer;
+
+    el.addEventListener('touchstart', () => {
+        pressTimer = setTimeout(() => {
+            const timeSinceSent = Date.now() - timestamp;
+            if (timeSinceSent > DELETE_WINDOW_MS) {
+                alert("You can only delete messages within 10 minutes of sending.");
+                return;
+            }
+            if (confirm("Delete this message for everyone?")) deleteMessage(key);
+        }, 800);
+    }, { passive: true });
+
+    el.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+    el.addEventListener('touchmove', () => clearTimeout(pressTimer), { passive: true });
 }
 
 // --- SWIPE TO REPLY (1:1 finger movement, elastic snap-back) ---
