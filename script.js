@@ -1095,6 +1095,9 @@ function doSendMessage(text, opts = {}) {
     // Reset Typing Status & Draft immediately
     db.ref(`status/${currentUser}/typing`).set(false);
     db.ref(`status/${currentUser}/draft`).set(null);
+
+    // Keep keyboard open: refocus input after send (fixes mobile keyboard dismiss)
+    setTimeout(() => messageInput.focus(), 50);
 }
 
 // Typing Handler (Throttled)
