@@ -294,18 +294,19 @@ if (plusSleepBtn) {
 // ------------------
 
 // 1. Web Detection (Tabs/Minimize)
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-        lockApp();
-    }
-});
+// 1. Web Detection (Tabs/Minimize)
+// document.addEventListener('visibilitychange', () => {
+//     if (document.visibilityState === 'hidden') {
+//         lockApp();
+//     }
+// });
 
 // 2. Mobile Detection (Background/App Switch)
-App.addListener('appStateChange', ({ isActive }) => {
-    if (!isActive) {
-        lockApp();
-    }
-});
+// App.addListener('appStateChange', ({ isActive }) => {
+//     if (!isActive) {
+//         lockApp();
+//     }
+// });
 
 function lockApp() {
     // Only lock if we are actually logged in (chat screen is visible)
