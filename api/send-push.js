@@ -72,7 +72,7 @@ module.exports = async (req, res) => {
     // If generic "Market opens..." requested
     if (title === "Market opens …") {
         message.notification.title = "Market opens …";
-        message.notification.body = "";
+        message.notification.body = " ";
     }
 
     try {

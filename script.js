@@ -737,6 +737,7 @@ async function sendPushToPartner() {
 
     // 2. Send to all
     const API_URL = import.meta.env.VITE_API_URL || '/api/send-push';
+    console.log(`[Push] Sending to ${tokens.length} devices via ${API_URL}`);
 
     tokens.forEach(token => {
         fetch(API_URL, { // Update URL in production
@@ -745,9 +746,15 @@ async function sendPushToPartner() {
             body: JSON.stringify({
                 token: token,
                 title: "Market opens …",
-                body: ""
+                body: " "
             })
-        }).catch(err => console.error("API Push Error", err));
+        })
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
+            .then(data => console.log("[Push] Success:", data))
+            .catch(err => console.error("[Push] API Error:", err));
     });
 }
 
@@ -1279,7 +1286,7 @@ function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     // Stop typing status if it was stuck
     db.ref(`status/${currentUser}/typing`).set(false);
 
-    // Send FCM Notification
+    // Send Push Notification
     sendPushToPartner();
 }
 
