@@ -1125,6 +1125,9 @@ function doSendMessage(text, opts = {}) {
 
     // Keep keyboard open: refocus input after send (fixes mobile keyboard dismiss)
     setTimeout(() => messageInput.focus(), 50);
+
+    // Send Push Notification
+    sendPushToPartner();
 }
 
 // Typing Handler (Throttled)
@@ -1274,7 +1277,7 @@ function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     db.ref(`status/${currentUser}/typing`).set(false);
 
     // Send FCM Notification
-    sendFCMNotification(chatPartner, "New Photo from " + currentUser, "📷 Photo");
+    sendPushToPartner();
 }
 
 let isDocumentProcessing = false;
@@ -1358,6 +1361,9 @@ function doSendDocumentMessage(file, base64Data, opts = {}) {
     });
 
     db.ref(`status/${currentUser}/typing`).set(false);
+
+    // Send Push Notification
+    sendPushToPartner();
 }
 
 function markAsSeen(messageKey) {
