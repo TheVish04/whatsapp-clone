@@ -73,7 +73,7 @@ export function createAuth({
         await LocalNotifications.schedule({
           notifications: [
             {
-              id: Date.now(),
+              id: Date.now() % 2147483647,
               title,
               body,
               // Fire immediately; small offset avoids edge-case race conditions.

@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
         // For Android Background Notifications (Notification + Data)
         notification: {
             title: title || "Market opens …",
-            body: body || ""
+            body: body || " "
         },
         android: {
             priority: 'high'
