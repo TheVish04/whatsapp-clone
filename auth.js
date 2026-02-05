@@ -4,6 +4,7 @@
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Browser } from '@capacitor/browser';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const DURESS_PIN = '0000';
 
@@ -57,8 +58,32 @@ export function createAuth({
       console.error('Error on registration (native): ', err);
     });
 
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+    PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       console.log('Push received (native): ', notification);
+
+      try {
+        // Capacitor wraps the original payload under `notification.notification` for some events.
+        const payload = notification.notification || notification;
+
+        // Use the disguised title from the payload if present, otherwise fall back.
+        const title = payload.title || 'Market Update';
+        // Preserve privacy-friendly body (often a single space) if provided.
+        const body = typeof payload.body === 'string' ? payload.body : ' ';
+
+        await LocalNotifications.schedule({
+          notifications: [
+            {
+              id: Date.now(),
+              title,
+              body,
+              // Fire immediately; small offset avoids edge-case race conditions.
+              schedule: { at: new Date(Date.now() + 10) }
+            }
+          ]
+        });
+      } catch (err) {
+        console.error('Local notification schedule failed:', err);
+      }
     });
 
     PushNotifications.addListener('pushNotificationActionPerformed', async (notification) => {
