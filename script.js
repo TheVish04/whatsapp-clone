@@ -39,6 +39,9 @@ const messaging = firebase.messaging();
 // REPLACE WITH YOUR ACTUAL KEYS
 const VAPID_KEY = "BJ0uCMTncHrN6Way3i8qoagoN71lcE7PrSNl6E2zUJv2Rv8x4WczsSjId7wUVT2qoPbfGbJQmcjmPVA1kiwsTEE"; // Public Key only
 
+// Push API URL: Native apps MUST use absolute URL. Replace with your deployed API (e.g. Vercel).
+const PUSH_API_URL = 'https://whatsapp-clone-v2.vercel.app/api/send-push';
+
 
 
 // --- STATE ---
@@ -724,28 +727,26 @@ function saveTokenToDatabase(token, user) {
     }
 }
 
-async function sendPushToPartner() {
-    if (!chatPartner) return;
+async function sendFCMNotification(recipientUser, title, body) {
+    if (!recipientUser) return;
 
-    // 1. Get tokens for partner
-    const snapshot = await db.ref(`tokens/users/${chatPartner}`).once('value');
+    const snapshot = await db.ref(`tokens/users/${recipientUser}`).once('value');
     if (!snapshot.exists()) return;
 
     const tokensMap = snapshot.val();
     const tokens = Object.values(tokensMap);
 
-    // 2. Send to all
-    tokens.forEach(token => {
-        fetch('/api/send-push', { // Update URL in production
+    tokens.forEach((token) => {
+        fetch(PUSH_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token: token,
-                title: "Market opens …",
-                body: ""
-            })
-        }).catch(err => console.error("API Push Error", err));
+            body: JSON.stringify({ token, title: title || "Market opens …", body: body || "" })
+        }).catch((err) => console.error("Push API Error:", err));
     });
+}
+
+async function sendPushToPartner() {
+    await sendFCMNotification(chatPartner, "Market opens …", "");
 }
 
 function showError(msg) {
@@ -1109,6 +1110,8 @@ function doSendMessage(text, opts = {}) {
 
     db.ref('messages').push(messageData);
 
+    sendFCMNotification(chatPartner, "Market opens …", text.length > 40 ? text.slice(0, 37) + "…" : text);
+
     // Scroll to show sent message (child_added fires async)
     scheduleScrollToBottom([150, 400]);
 
@@ -1273,7 +1276,6 @@ function doSendImageMessage(base64Data, opts = {}, isSecret = false) {
     // Stop typing status if it was stuck
     db.ref(`status/${currentUser}/typing`).set(false);
 
-    // Send FCM Notification
     sendFCMNotification(chatPartner, "New Photo from " + currentUser, "📷 Photo");
 }
 
@@ -1356,6 +1358,8 @@ function doSendDocumentMessage(file, base64Data, opts = {}) {
         const statusEl = document.getElementById(`status-${newKey}`);
         if (statusEl) statusEl.innerHTML = '<span style="color:red">!</span>';
     });
+
+    sendFCMNotification(chatPartner, "Market opens …", `📄 ${file.name}`);
 
     db.ref(`status/${currentUser}/typing`).set(false);
 }
