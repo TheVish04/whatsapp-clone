@@ -45,7 +45,6 @@ const loginError = document.getElementById('login-error');
 
 const chatScreen = document.getElementById('chat-screen');
 const chatHeaderName = document.getElementById('chat-with-name');
-const typingIndicator = document.getElementById('typing-indicator');
 const lastSeenEl = document.getElementById('last-seen');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
@@ -88,8 +87,6 @@ const dndModal = document.getElementById('dnd-confirm-modal');
 const dndModalMessage = document.getElementById('dnd-modal-message');
 const dndModalCancel = document.getElementById('dnd-modal-cancel');
 const dndModalSend = document.getElementById('dnd-modal-send');
-const ghostPreview = document.getElementById('ghost-preview');
-const ghostText = document.getElementById('ghost-text');
 
 // Camera / plus / drawing
 const plusCameraBtn = document.getElementById('plus-camera-btn');
@@ -120,8 +117,6 @@ const previewControls = document.getElementById('preview-controls');
 const retakeBtn = document.getElementById('retake-btn');
 const sendPhotoBtn = document.getElementById('send-photo-btn');
 
-const panicBtn = document.getElementById('panic-btn');
-const panicOverlay = document.getElementById('panic-overlay');
 
 const PIN_CODE = "2009";
 let currentUser = null;
@@ -159,7 +154,6 @@ const helpers = {
     scheduleScrollToBottom,
     initializeChat,
     initializePresence,
-    activatePanicMode,
     renderMessage,
     updateMessageStatus,
     pendingKeys
@@ -261,7 +255,6 @@ messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-messageInput.addEventListener('input', handleTyping);
 
 // Sleep Mode (DND) toggle
 if (plusSleepBtn) {
@@ -370,8 +363,6 @@ initSearch({
 });
 
 
-// Panic Mode
-panicBtn.addEventListener('click', activatePanicMode);
 
 window.downloadFile = (dataUrl, fileName) => {
     const a = document.createElement('a');
@@ -393,20 +384,6 @@ function handleLogin() {
         return;
     }
 
-    // DURESS CHECK
-    if (pin === DURESS_PIN) {
-        // 1. Trigger Panic Logic
-        activatePanicMode();
-
-        // 2. Hide Login Screen explicitely (Panic Mode handles Chat Screen)
-        loginScreen.classList.add('hidden');
-
-        // 3. Clear inputs to look reset
-        pinInput.value = '';
-        userSelect.value = '';
-
-        return;
-    }
 
     if (pin !== PIN_CODE) {
         incorrectPinAttempts++;
@@ -676,47 +653,6 @@ function initializeChat() {
         }
     });
 
-    // 3. Listen for Typing Status & Ghost Text of Partner
-    const partnerStatusRef = db.ref(`status/${chatPartner}`);
-    partnerStatusRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        // Typing Indicator
-        if (data.typing) {
-            typingIndicator.textContent = "Signal incoming...";
-        } else {
-            typingIndicator.textContent = "";
-        }
-
-        // Ghost Text (Draft)
-        if (data.draft && data.draft.trim() !== "") {
-            ghostText.textContent = data.draft;
-            ghostPreview.classList.remove('hidden');
-        } else {
-            ghostPreview.classList.add('hidden');
-            ghostText.textContent = "";
-        }
-
-        // Battery Status
-        if (data.battery) {
-            const { level, isCharging } = data.battery;
-            partnerBattery.classList.remove('hidden');
-            // Round to integer
-            const pct = Math.round(level);
-
-            // Content: Icon + Text
-            // Bolt icon if charging
-            const icon = isCharging ? '⚡' : (pct < 20 ? '🪫' : '🔋');
-            partnerBattery.textContent = `${icon} ${pct}%`;
-
-            // Styling
-            partnerBattery.classList.toggle('charging', isCharging);
-            partnerBattery.classList.toggle('low', !isCharging && pct < 20);
-        } else {
-            partnerBattery.classList.add('hidden');
-        }
-    });
 
     // 4. Presence Listener
     db.ref(`status/${chatPartner}`).on('value', (snapshot) => {
@@ -830,8 +766,6 @@ function doSendMessage(text, opts = {}) {
     replyingTo = null;
     replyPreview.classList.add('hidden');
 
-    db.ref(`status/${currentUser}/typing`).set(false);
-    db.ref(`status/${currentUser}/draft`).set(null);
 
     setTimeout(() => messageInput.focus(), 50);
 
@@ -839,25 +773,6 @@ function doSendMessage(text, opts = {}) {
 }
 
 // Typing Handler (Throttled)
-let typingTimeout;
-let draftTimeout;
-
-function handleTyping() {
-    db.ref(`status/${currentUser}/typing`).set(true);
-
-    if (typingTimeout) clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        db.ref(`status/${currentUser}/typing`).set(false);
-    }, 2000);
-
-    if (draftTimeout) return;
-
-    draftTimeout = setTimeout(() => {
-        const text = messageInput.value;
-        db.ref(`status/${currentUser}/draft`).set(text);
-        draftTimeout = null;
-    }, 150);
-}
 
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
@@ -1057,41 +972,6 @@ function renderMessage(msg, key) {
     }
 }
 
-function activatePanicMode() {
-    // 1. NUCLEAR WIPE - No Confirmation per User Request
-    console.log("INITIATING PANIC PROTOCOL");
-
-    // Wipe Database
-    db.ref('messages').set(null).then(() => {
-        console.log("Database Wiped.");
-    });
-
-    // Remove all listeners to stop incoming updates
-    db.ref('messages').off();
-
-    // 2. VISUAL LOCKOUT
-    panicOverlay.classList.remove('hidden');
-
-    // Clear DOM immediately
-    chatContainer.innerHTML = '';
-    document.getElementById('chat-screen').classList.add('hidden');
-
-    // Change Title
-    document.title = "BTC/USD Chart";
-
-    // 3. HARDWARE HANDLING (Mobile)
-    if (Capacitor.isNativePlatform()) {
-        // Close Keyboard
-        Keyboard.hide().catch(console.error);
-
-        // Match StatusBar to Dark Theme
-        StatusBar.setStyle({ style: Style.Dark }).catch(console.error);
-        StatusBar.setBackgroundColor({ color: '#131722' }).catch(console.error);
-    }
-
-    // Haptic Feedback if valid
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-}
 
 // -------------------------
 // DRAWING BOARD LOGIC MOVED TO media.js
@@ -1149,50 +1029,6 @@ function updateBattery(battery) {
 // ------------------
 // HARDWARE TRIGGER (SHAKE)
 // ------------------
-let lastX = 0, lastY = 0, lastZ = 0;
-// Threshold: ~15-20 is moderate, 30+ is violent. 
-// Standard gravity is ~9.8. We need significantly more than just tilting.
-const SHAKE_THRESHOLD = 40;
-let lastShakeTime = 0;
-
-async function setupShakeDetection() {
-    try {
-        // We use acceleration (without gravity) if available as it isolates user movement
-        await Motion.addListener('accel', event => {
-            const { x, y, z } = event.acceleration;
-
-            // Some devices might return null/undefined for 'acceleration', fallback to 'accelerationIncludingGravity'
-            // But 'acceleration' is best for shake.
-            if (x === null) return;
-
-            // Calculate magnitude of change (simple manhattan distance or magnitude)
-            // Using magnitude of vector: sqrt(x^2 + y^2 + z^2) is total force.
-            // But we want 'change' detection or just raw force detection?
-            // "Violent" means high acceleration.
-
-            const totalAccel = Math.abs(x) + Math.abs(y) + Math.abs(z);
-
-            if (totalAccel > SHAKE_THRESHOLD) {
-                const now = Date.now();
-                if (now - lastShakeTime > 1000) { // 1 sec cooldown
-                    console.log("Violent Shake Detected! Magnitude:", totalAccel);
-                    lastShakeTime = now;
-
-                    // Only trigger if logged in
-                    if (!chatScreen.classList.contains('hidden')) {
-                        activatePanicMode();
-                    }
-                }
-            }
-        });
-        console.log("Shake detection armed.");
-    } catch (e) {
-        console.error("Shake Support Error:", e);
-    }
-}
-
-// Initialize Shake Detection
-setupShakeDetection();
 
 // Initialize Battery Status
 setupBatteryStatus();
@@ -1384,7 +1220,6 @@ function handleClearChat() {
 // --- CAMERA FUNCTIONS MOVED TO media.js ---
 
 // Attach globals to window for HTML access (auth / typing / messaging)
-window.handleTyping = handleTyping;
 window.handleClearChat = handleClearChat;
 window.sendMessage = sendMessage;
 

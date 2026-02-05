@@ -302,9 +302,6 @@ body::before {
     margin-top: 2px;
 }
 
-#typing-indicator {
-    color: var(--accent-teal);
-}
 
 #last-seen {
     font-size: 12px;
@@ -678,25 +675,6 @@ body::before {
 #reply-text { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
 #close-reply { color: var(--text-muted); cursor: pointer; font-size: 20px; padding: 4px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
 
-.ghost-preview {
-    position: absolute;
-    bottom: 80px;
-    left: 20px;
-    right: 20px;
-    background: var(--bg-glass);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-    padding: 10px 14px;
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    z-index: 90;
-    font-size: 13px;
-    color: var(--text-muted);
-    pointer-events: none;
-    animation: modalScaleIn 0.2s ease-out;
-}
 
 .input-action-btn {
     background: rgba(255, 255, 255, 0.06);
@@ -1094,13 +1072,6 @@ emoji-picker {
     transform: scale(1.15);
 }
 
-/* Panic Overlay */
-#panic-overlay {
-    position: fixed;
-    inset: 0;
-    background: #131722;
-    z-index: 9999;
-}
 
 .tradingview-widget-copyright { display: none; }
 
