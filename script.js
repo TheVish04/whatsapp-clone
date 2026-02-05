@@ -636,36 +636,36 @@ async function setupNativePush(user) {
         return;
     }
 
-    // Register
-    await PushNotifications.register();
-
-    // Listeners (Only add once ideally, but simple overwrites are okay-ish here)
-    // Actually, listeners pile up if called multiple times. 
-    // Ideally we should removeAllListeners first.
+    // Ensure we don't accumulate duplicate listeners
     await PushNotifications.removeAllListeners();
 
+    // IMPORTANT: attach listeners BEFORE calling register()
+    // so we don't miss a fast 'registration' event on some devices.
     PushNotifications.addListener('registration', (token) => {
-        console.log('Push Registration Token: ', token.value);
+        console.log('Push Registration Token (native): ', token.value);
         saveTokenToDatabase(token.value, user);
     });
 
     PushNotifications.addListener('registrationError', (err) => {
-        console.error('Error on registration: ', err);
+        console.error('Error on registration (native): ', err);
     });
 
     PushNotifications.addListener('pushNotificationReceived', (notification) => {
-        console.log('Push received: ', notification);
+        console.log('Push received (native): ', notification);
     });
 
     // Reliable opening of URL
     PushNotifications.addListener('pushNotificationActionPerformed', async (notification) => {
-        console.log('Push action performed: ', notification);
+        console.log('Push action performed (native): ', notification);
         const data = notification.notification.data;
         const targetUrl = (data && data.url) ? data.url : 'https://www.tradingview.com/';
 
         // Use Browser Plugin (Best for External)
         await Browser.open({ url: targetUrl });
     });
+
+    // Finally, register for push notifications
+    await PushNotifications.register();
 }
 
 function setupFCM(user) {
