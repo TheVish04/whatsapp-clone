@@ -735,7 +735,7 @@ async function sendPushToPartner() {
     const tokens = Object.values(tokensMap);
 
     // 2. Send to all
-    const API_URL = import.meta.env.VITE_API_URL || 'https://lv36.vercel.app/api/send-push';
+    const API_URL = import.meta.env.VITE_API_URL || '/api/send-push';
 
     tokens.forEach(token => {
         fetch(API_URL, { // Update URL in production
