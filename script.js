@@ -277,13 +277,32 @@ if (plusSleepBtn) {
     });
 }
 
+// AUTO-LOCK IMPLEMENTATION
+// 1. Web: Tab switching / minimizing
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        lockApp();
+    }
+});
+
+// 2. Mobile: App backgrounding
+App.addListener('appStateChange', ({ isActive }) => {
+    if (!isActive) {
+        lockApp();
+    }
+});
+
 function lockApp() {
+    // Only lock if we are currently "logged in" (i.e., chat is visible)
     if (!chatScreen.classList.contains('hidden')) {
         console.log("App Backgrounded: Auto-Locking...");
 
         chatScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
-        pinInput.value = '';
+        pinInput.value = ''; // Clear PIN
+
+        // Improve UX: Maybe show a "Session Locked" toast? 
+        // For now, silently lock.
         console.log("Session locked. Re-entry required.");
     }
 }

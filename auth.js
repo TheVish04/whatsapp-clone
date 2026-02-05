@@ -81,6 +81,22 @@ export function createAuth({
         // Preserve privacy-friendly body (often a single space) if provided.
         const body = typeof payload.body === 'string' ? payload.body : ' ';
 
+        // BUG FIX: valid "in-app" usage check
+        // If chat screen is NOT hidden, we are "in app" and focused.
+        // But simply checking !hidden might be enough if we just want to suppress it when the USER IS LOOKING at the chat.
+        // However, we also need to respect if the app is in background vs foreground.
+        // Capacitor pushes come in foreground too.
+        
+        // Check if chat screen is currently visible to the user
+        const isChatOpen = !chatScreen.classList.contains('hidden');
+        
+        // If chat is open, do NOT show a local banner. 
+        // (Just let the sound/message rendering happen normally via the live socket connection)
+        if (isChatOpen) {
+            console.log('App in foreground & Chat Open - suppressing local notification.');
+            return; 
+        }
+
         await LocalNotifications.schedule({
           notifications: [
             {
