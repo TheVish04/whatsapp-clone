@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Trading Currency</string>
-    <string name="title_activity_main">Trading Currency</string>
-    <string name="package_name">com.vishal.tradingcurrency</string>
-    <string name="custom_url_scheme">com.vishal.tradingcurrency</string>
-</resources>
