@@ -49,6 +49,17 @@ export function createAuth({
 
     await PushNotifications.removeAllListeners();
 
+    // Create channel for Foreground Local Notifications
+    await LocalNotifications.createChannel({
+      id: 'fcm_default_channel',
+      name: 'Messages',
+      description: 'New Message Notifications',
+      importance: 5,
+      visibility: 1,
+      sound: 'default.mp3', // Make sure this matches if you have custom sound, else standard
+      vibration: true
+    });
+
     PushNotifications.addListener('registration', (token) => {
       console.log('Push Registration Token (native): ', token.value);
       saveTokenToDatabase(token.value, user);
@@ -76,8 +87,9 @@ export function createAuth({
               id: Date.now() % 2147483647,
               title,
               body,
+              channelId: 'fcm_default_channel', // CRITICAL: Must match created channel
               // Fire immediately; small offset avoids edge-case race conditions.
-              schedule: { at: new Date(Date.now() + 10) }
+              schedule: { at: new Date(Date.now() + 100) } // Increased delay slightly
             }
           ]
         });
