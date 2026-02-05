@@ -1,0 +1,6 @@
+{
+  "appId": "com.vishal.tradingcurrency",
+  "appName": "Trading Currency",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
