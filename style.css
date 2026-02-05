@@ -302,6 +302,13 @@ body::before {
     margin-top: 2px;
 }
 
+#typing-indicator {
+    color: var(--accent-teal);
+    font-size: 13px;
+    margin-right: 8px;
+    font-weight: 500;
+}
+
 
 #last-seen {
     font-size: 12px;

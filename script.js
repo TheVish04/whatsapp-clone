@@ -45,6 +45,7 @@ const loginError = document.getElementById('login-error');
 
 const chatScreen = document.getElementById('chat-screen');
 const chatHeaderName = document.getElementById('chat-with-name');
+const typingIndicator = document.getElementById('typing-indicator');
 const lastSeenEl = document.getElementById('last-seen');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
@@ -251,6 +252,7 @@ if (dndModal) {
         }
     });
 }
+messageInput.addEventListener('input', handleTyping);
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
@@ -668,6 +670,20 @@ function initializeChat() {
             lastSeenEl.textContent = "";
         }
     });
+
+    // 5. Listen for Typing Status (No Ghost Text)
+    const partnerStatusRef = db.ref(`status/${chatPartner}`);
+    partnerStatusRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        // Typing Indicator
+        if (data.typing) {
+            typingIndicator.textContent = "Signal incoming..."; // Disguised typing text
+        } else {
+            typingIndicator.textContent = "";
+        }
+    });
 }
 
 function initializePresence() {
@@ -769,10 +785,21 @@ function doSendMessage(text, opts = {}) {
 
     setTimeout(() => messageInput.focus(), 50);
 
+
     auth.sendPushToPartner();
 }
 
 // Typing Handler (Throttled)
+let typingTimeout;
+
+function handleTyping() {
+    db.ref(`status/${currentUser}/typing`).set(true);
+
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+        db.ref(`status/${currentUser}/typing`).set(false);
+    }, 2000);
+}
 
 function markAsSeen(messageKey) {
     db.ref(`messages/${messageKey}`).update({ seen: true });
@@ -1220,6 +1247,7 @@ function handleClearChat() {
 // --- CAMERA FUNCTIONS MOVED TO media.js ---
 
 // Attach globals to window for HTML access (auth / typing / messaging)
+window.handleTyping = handleTyping;
 window.handleClearChat = handleClearChat;
 window.sendMessage = sendMessage;
 

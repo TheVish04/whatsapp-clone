@@ -13,8 +13,8 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging-compat.js"></script>
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
-  <script type="module" crossorigin src="/assets/index-CS-a57ov.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BlbDcDlF.css">
+  <script type="module" crossorigin src="/assets/index-ClHg_ryU.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-AQMDbUfk.css">
 </head>
 
 <body>
@@ -141,10 +141,6 @@
         </div>
 
         <!-- Ghost Text Preview (Live Typing) -->
-        <div id="ghost-preview" class="ghost-preview hidden">
-            <span class="ghost-icon">✎</span>
-            <span id="ghost-text"></span>
-        </div>
 
         <div class="chat-input-area">
             <div class="emoji-picker-container hidden" id="emoji-picker-container">
@@ -223,12 +219,6 @@
                 </div>
             </div>
 
-            <!-- TRADING ICON (Right of Plus) -->
-            <button id="panic-btn" class="input-action-btn">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
-                    <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
-                </svg>
-            </button>
 
             <!-- HIDDEN INPUTS -->
             <input type="file" id="image-input" accept="image/*" hidden>
@@ -323,31 +313,6 @@
         </div>
     </div>
 
-    <!-- PANIC OVERLAY -->
-    <div id="panic-overlay" class="hidden">
-        <div class="tradingview-widget-container" style="height:100%; width:100%">
-            <div id="tradingview_b239c" style="height:calc(100% - 32px); width:100%"></div>
-            <div class="tradingview-widget-copyright"><a href="https://www.tradingview.com/" rel="noopener nofollow"
-                    target="_blank"><span class="blue-text">Track all markets on TradingView</span></a></div>
-            <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-            <script type="text/javascript">
-                new TradingView.widget(
-                    {
-                        "autosize": true,
-                        "symbol": "BITSTAMP:BTCUSD",
-                        "interval": "D",
-                        "timezone": "Etc/UTC",
-                        "theme": "dark",
-                        "style": "1",
-                        "locale": "en",
-                        "enable_publishing": false,
-                        "allow_symbol_change": true,
-                        "container_id": "tradingview_b239c"
-                    }
-                );
-            </script>
-        </div>
-    </div>
 
     <!-- Drawing Modal -->
     <div id="drawing-modal" class="hidden">
