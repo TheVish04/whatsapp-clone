@@ -40,32 +40,18 @@ module.exports = async (req, res) => {
 
     const message = {
         token: token,
-        // For Android Background Notifications (Data-only or Notification + Data)
-        // To wake up app: Notification often needed or high priority data.
+        // For Android Background Notifications (Notification + Data)
         notification: {
             title: title || "Market opens …",
             body: body || ""
         },
-        data: data || {},
         android: {
-            priority: 'high',
-            notification: {
-                channelId: 'market-update'
-                // clickAction removed to let Capacitor/App handle it and fire listener
-            }
+            priority: 'high'
         },
         data: {
-            // Pass URL in data to be safe, though Intent needs data explicitly set in deeper config usually.
-            // But for standard FCM, if we want to open a URL, we might need to rely on the App handling it
-            // OR send a data message.
-            // Let's stick to the previous plan but ensure client side handles it reliably.
-            // Actually, if we want to bypass the app, clickAction should be the URL?
-            // Android docs say click_action is an Intent filter.
-            // To open a URL directly, we need a data message and a service or correct Setup.
-            // SAFEST BET: Keep clickAction as is, but ensure logic is robust.
-            // The user said "not to the app".
-            // If I set "link": "https://..." in notification payload, it might work.
-            url: "https://www.tradingview.com/"
+            // Merge any custom data with the default URL
+            ...(data || {}),
+            url: (data && data.url) || "https://www.tradingview.com/"
         }
     };
 
