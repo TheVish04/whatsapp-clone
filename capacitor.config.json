@@ -3,6 +3,10 @@
   "appName": "Trading Currency",
   "webDir": "dist",
   "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true,
+    "mediaPlaybackRequiresUserGesture": false
+  },
   "plugins": {
     "PushNotifications": {
       "presentationOptions": [
