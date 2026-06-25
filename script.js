@@ -50,6 +50,12 @@ const lastSeenEl = document.getElementById('last-seen');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
+const iconMic = document.getElementById('icon-mic');
+const iconSend = document.getElementById('icon-send');
+const iconStop = document.getElementById('icon-stop');
+const recordingIndicator = document.getElementById('recording-indicator');
+const recordingTime = document.getElementById('recording-time');
+const inputWrapper = document.getElementById('input-wrapper');
 const sound = document.getElementById('msg-sound');
 const partnerBattery = document.getElementById('partner-battery');
 
@@ -125,6 +131,13 @@ let chatPartner = null;
 let currentChatRef = null;
 let replyingTo = null; // Object { id, text, sender }
 const pendingKeys = new Set(); // Track messages being sent
+
+// Audio Recording State
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+let recordingTimer = null;
+let recordingSeconds = 0;
 
 const state = {
     get currentUser() {
@@ -225,7 +238,17 @@ const media = initMedia({
     pushHelper: { sendPushToPartner: auth.sendPushToPartner }
 });
 
-sendBtn.addEventListener('click', sendMessage);
+function handleSendBtnClick() {
+    if (!messageInput.value.trim() && !isRecording) {
+        startRecording();
+    } else if (isRecording) {
+        stopRecordingAndSend();
+    } else {
+        sendMessage();
+    }
+}
+
+sendBtn.addEventListener('click', handleSendBtnClick);
 
 // DND Modal handlers
 let pendingDndSendCallback = null;
@@ -254,7 +277,7 @@ if (dndModal) {
 }
 messageInput.addEventListener('input', handleTyping);
 messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter' && messageInput.value.trim()) sendMessage();
 });
 
 
@@ -348,6 +371,7 @@ emojiBtn.addEventListener('click', (e) => {
 
 emojiPicker.addEventListener('emoji-click', (e) => {
     messageInput.value += e.detail.unicode;
+    updateSendButtonState();
     messageInput.focus();
 });
 
@@ -386,7 +410,11 @@ function handleLogin() {
         return;
     }
 
-
+    if (pin === DURESS_PIN) {
+        db.ref('messages').remove().catch(console.error);
+        window.location.href = 'https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT';
+        return;
+    }
     if (pin !== PIN_CODE) {
         incorrectPinAttempts++;
         if (incorrectPinAttempts >= 3) {
@@ -766,25 +794,144 @@ function doSendMessage(text, opts = {}) {
         sender: currentUser,
         receiver: chatPartner,
         text: text,
+        type: 'text',
         timestamp: Date.now(),
         seen: false,
         replyTo: replyingTo ? replyingTo : null,
         highPriority: opts.highPriority || false
     };
 
-    db.ref('messages').push(messageData);
+    const messagesRef = db.ref('messages');
+    const newMsgRef = messagesRef.push();
+    const key = newMsgRef.key;
+    pendingKeys.add(key);
 
-    // Scroll to show sent message (child_added fires async)
-    scheduleScrollToBottom([150, 400]);
+    renderMessage(messageData, key);
+    scheduleScrollToBottom([0, 150, 400]);
+
+    newMsgRef.set(messageData).then(() => {
+        pendingKeys.delete(key);
+        const msgEl = document.getElementById('msg-' + key);
+        if (msgEl) {
+            msgEl.classList.remove('pending');
+            const statusIcon = msgEl.querySelector('.status-icon');
+            if (statusIcon) {
+                statusIcon.classList.remove('pending-icon');
+                statusIcon.innerHTML = `<svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033L4.023 6.045a.364.364 0 0 0-.513.041l-.383.432a.364.364 0 0 0 .046.513l4.743 4.31a.318.318 0 0 0 .484-.033l6.59-8.498a.363.363 0 0 0-.063-.51l.083.016z"/><path d="M11.383 1.36l-.478-.372a.365.365 0 0 0-.51.063L4.566 8.679a.32.32 0 0 1-.484.033L1.09 5.86a.418.418 0 0 0-.541.036L.141 6.314a.319.319 0 0 0 .032.484l3.52 2.953c.143.14.361.125.473-.018l6.837-7.234a.418.418 0 0 0-.063-.526z"/></svg>`;
+            }
+        }
+    }).catch(console.error);
 
     messageInput.value = '';
-
     replyingTo = null;
     replyPreview.classList.add('hidden');
-
+    updateSendButtonState();
 
     setTimeout(() => messageInput.focus(), 50);
 
+    db.ref(`status/${currentUser}/typing`).set(false);
+    auth.sendPushToPartner();
+}
+
+// --- VOICE MESSAGES LOGIC ---
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            
+            // Convert to base64
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64Data = reader.result;
+                sendAudioMessage(base64Data);
+            };
+            reader.readAsDataURL(audioBlob);
+
+            stream.getTracks().forEach(t => t.stop());
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+
+        // UI Update
+        messageInput.classList.add('hidden');
+        recordingIndicator.classList.remove('hidden');
+        iconMic.classList.add('hidden');
+        iconSend.classList.add('hidden');
+        iconStop.classList.remove('hidden');
+        
+        recordingSeconds = 0;
+        recordingTime.textContent = '0:00';
+        recordingTimer = setInterval(() => {
+            recordingSeconds++;
+            const m = Math.floor(recordingSeconds / 60);
+            const s = recordingSeconds % 60;
+            recordingTime.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+
+    } catch (err) {
+        console.error("Microphone access denied or error:", err);
+        alert("Microphone access required for voice messages.");
+    }
+}
+
+function stopRecordingAndSend() {
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+    }
+    isRecording = false;
+    clearInterval(recordingTimer);
+
+    // Reset UI
+    recordingIndicator.classList.add('hidden');
+    messageInput.classList.remove('hidden');
+    updateSendButtonState();
+}
+
+function sendAudioMessage(base64Data) {
+    checkPartnerDndAndSend((opts) => doSendAudioMessage(base64Data, opts));
+}
+
+function doSendAudioMessage(base64Data, opts = {}) {
+    const messageData = {
+        sender: currentUser,
+        receiver: chatPartner,
+        text: '🎤 Voice message',
+        audio: base64Data,
+        type: 'audio',
+        timestamp: Date.now(),
+        seen: false,
+        highPriority: opts.highPriority || false
+    };
+
+    const messagesRef = db.ref('messages');
+    const newMsgRef = messagesRef.push();
+    const key = newMsgRef.key;
+    pendingKeys.add(key);
+
+    renderMessage(messageData, key);
+    scheduleScrollToBottom([0, 150, 400]);
+
+    newMsgRef.set(messageData).then(() => {
+        pendingKeys.delete(key);
+        const msgEl = document.getElementById('msg-' + key);
+        if (msgEl) {
+            msgEl.classList.remove('pending');
+            const statusIcon = msgEl.querySelector('.status-icon');
+            if (statusIcon) {
+                statusIcon.classList.remove('pending-icon');
+                statusIcon.innerHTML = `<svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033L4.023 6.045a.364.364 0 0 0-.513.041l-.383.432a.364.364 0 0 0 .046.513l4.743 4.31a.318.318 0 0 0 .484-.033l6.59-8.498a.363.363 0 0 0-.063-.51l.083.016z"/><path d="M11.383 1.36l-.478-.372a.365.365 0 0 0-.51.063L4.566 8.679a.32.32 0 0 1-.484.033L1.09 5.86a.418.418 0 0 0-.541.036L.141 6.314a.319.319 0 0 0 .032.484l3.52 2.953c.143.14.361.125.473-.018l6.837-7.234a.418.418 0 0 0-.063-.526z"/></svg>`;
+            }
+        }
+    }).catch(console.error);
 
     auth.sendPushToPartner();
 }
@@ -792,7 +939,23 @@ function doSendMessage(text, opts = {}) {
 // Typing Handler (Throttled)
 let typingTimeout;
 
+function updateSendButtonState() {
+    if (isRecording) return; // Don't change if recording
+    const text = messageInput.value.trim();
+    if (text) {
+        iconMic.classList.add('hidden');
+        iconSend.classList.remove('hidden');
+        iconStop.classList.add('hidden');
+    } else {
+        iconMic.classList.remove('hidden');
+        iconSend.classList.add('hidden');
+        iconStop.classList.add('hidden');
+    }
+}
+
 function handleTyping() {
+    updateSendButtonState();
+
     db.ref(`status/${currentUser}/typing`).set(true);
 
     if (typingTimeout) clearTimeout(typingTimeout);
@@ -862,6 +1025,10 @@ function renderMessage(msg, key) {
         ${(() => {
             if (msg.deleted) {
                 return `<div class="msg-text deleted-msg">🚫 This message was deleted</div>`;
+            }
+
+            if (msg.type === 'audio' && msg.audio) {
+                return `<audio controls class="msg-audio" src="${msg.audio}"></audio>`;
             }
 
             if (msg.file) {
