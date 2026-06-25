@@ -1539,6 +1539,12 @@ function updateMessageReactions(key, reactions) {
 }
 
 window.showTradingViewChart = function() {
+    // Push state so Android back button can be intercepted
+    history.pushState({ page: 'chart' }, 'Chart', '#chart');
+    window.addEventListener('popstate', () => {
+        window.location.reload(); // Reload to restore the original app DOM
+    });
+
     // Clear everything
     document.body.innerHTML = '';
     
