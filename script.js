@@ -875,6 +875,10 @@ async function startRecording() {
             const m = Math.floor(recordingSeconds / 60);
             const s = recordingSeconds % 60;
             recordingTime.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+            // Auto-stop at 60 seconds to stay within Firebase 10MB limit
+            if (recordingSeconds >= 60) {
+                stopRecordingAndSend();
+            }
         }, 1000);
 
     } catch (err) {
@@ -931,7 +935,13 @@ function doSendAudioMessage(base64Data, opts = {}) {
                 statusIcon.innerHTML = `<svg viewBox="0 0 16 15" width="16" height="15" fill="currentColor"><path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033L4.023 6.045a.364.364 0 0 0-.513.041l-.383.432a.364.364 0 0 0 .046.513l4.743 4.31a.318.318 0 0 0 .484-.033l6.59-8.498a.363.363 0 0 0-.063-.51l.083.016z"/><path d="M11.383 1.36l-.478-.372a.365.365 0 0 0-.51.063L4.566 8.679a.32.32 0 0 1-.484.033L1.09 5.86a.418.418 0 0 0-.541.036L.141 6.314a.319.319 0 0 0 .032.484l3.52 2.953c.143.14.361.125.473-.018l6.837-7.234a.418.418 0 0 0-.063-.526z"/></svg>`;
             }
         }
-    }).catch(console.error);
+    }).catch((err) => {
+        console.error('Voice message send failed:', err);
+        pendingKeys.delete(key);
+        const msgEl = document.getElementById('msg-' + key);
+        if (msgEl) msgEl.remove();
+        alert('Voice message too large or failed to send. Please keep recordings under 60 seconds.');
+    });
 
     auth.sendPushToPartner();
 }
