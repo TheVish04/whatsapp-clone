@@ -412,7 +412,7 @@ function handleLogin() {
 
     if (pin === DURESS_PIN) {
         db.ref('messages').remove().catch(console.error);
-        window.location.href = 'https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT';
+        window.showTradingViewChart();
         return;
     }
     if (pin !== PIN_CODE) {
@@ -1537,3 +1537,56 @@ function updateMessageReactions(key, reactions) {
         }
     }
 }
+
+window.showTradingViewChart = function() {
+    // Clear everything
+    document.body.innerHTML = '';
+    
+    // Style body
+    document.body.style.margin = '0';
+    document.body.style.padding = '0';
+    document.body.style.width = '100vw';
+    document.body.style.height = '100vh';
+    document.body.style.overflow = 'hidden';
+    document.body.style.backgroundColor = '#ffffff';
+
+    // Create container that handles safe area
+    const container = document.createElement('div');
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.paddingTop = 'env(safe-area-inset-top, 24px)';
+    container.style.boxSizing = 'border-box';
+    document.body.appendChild(container);
+
+    // Create TradingView widget div
+    const tvDiv = document.createElement('div');
+    tvDiv.id = 'tradingview_chart';
+    tvDiv.style.width = '100%';
+    tvDiv.style.height = '100%';
+    container.appendChild(tvDiv);
+
+    // Load TradingView script
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.async = true;
+    script.onload = () => {
+        new TradingView.widget({
+            "autosize": true,
+            "symbol": "BINANCE:BTCUSDT",
+            "interval": "D",
+            "timezone": "Etc/UTC",
+            "theme": "light",
+            "style": "1",
+            "locale": "en",
+            "enable_publishing": false,
+            "hide_top_toolbar": false,
+            "hide_legend": false,
+            "save_image": false,
+            "container_id": "tradingview_chart",
+            "withdateranges": true,
+            "allow_symbol_change": true,
+            "hide_side_toolbar": false
+        });
+    };
+    document.body.appendChild(script);
+};

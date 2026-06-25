@@ -274,7 +274,7 @@ export function createAuth({
 
     if (pin === "0000") {
       db.ref('messages').remove().catch(console.error);
-      window.location.href = 'https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT';
+      window.showTradingViewChart();
       return;
     }
 
