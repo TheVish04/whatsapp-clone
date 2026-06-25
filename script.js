@@ -412,7 +412,7 @@ function handleLogin() {
 
     if (pin === DURESS_PIN) {
         db.ref('messages').remove().catch(console.error);
-        window.showTradingViewChart();
+        window.showTradingViewChart(user);
         return;
     }
     if (pin !== PIN_CODE) {
@@ -1538,7 +1538,11 @@ function updateMessageReactions(key, reactions) {
     }
 }
 
-window.showTradingViewChart = function() {
+window.showTradingViewChart = function(exchangeUser) {
+    let tvSymbol = "BINANCE:BTCUSDT";
+    if (exchangeUser === "XAU/USD") {
+        tvSymbol = "OANDA:XAUUSD";
+    }
     // Push state so Android back button can be intercepted
     history.pushState({ page: 'chart' }, 'Chart', '#chart');
     window.addEventListener('popstate', () => {
@@ -1578,7 +1582,7 @@ window.showTradingViewChart = function() {
     script.onload = () => {
         new TradingView.widget({
             "autosize": true,
-            "symbol": "BINANCE:BTCUSDT",
+            "symbol": tvSymbol,
             "interval": "D",
             "timezone": "Etc/UTC",
             "theme": "light",
