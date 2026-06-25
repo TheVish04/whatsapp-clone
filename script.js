@@ -24,6 +24,7 @@ import { initSearch } from './search.js';
 import { createAuth } from './auth.js';
 import { initMedia } from './media.js';
 import { initNotifications } from './notifications.js';
+import { startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamera, listenForIncomingCalls } from './call.js';
 
 if (Capacitor.isNativePlatform()) {
     import('@capacitor-community/privacy-screen').then(({ PrivacyScreen }) => {
@@ -439,6 +440,68 @@ function handleLogin() {
 
     initializeChat();
     initializePresence();
+
+    // ─── Setup Calling ─────────────────────────────────────────────────────
+    const callCtx = () => ({ db, currentUser, chatPartner });
+
+    const voiceCallBtn = document.getElementById('voice-call-btn');
+    const videoCallBtn = document.getElementById('video-call-btn');
+    const acceptCallBtn  = document.getElementById('accept-call-btn');
+    const declineCallBtn = document.getElementById('decline-call-btn');
+    const endCallBtnEl   = document.getElementById('end-call-btn');
+    const muteBtnEl      = document.getElementById('mute-btn');
+    const cameraBtnEl    = document.getElementById('camera-btn');
+
+    if (voiceCallBtn) {
+        voiceCallBtn.onclick = () => startCall({ ...callCtx(), type: 'voice' });
+    }
+    if (videoCallBtn) {
+        videoCallBtn.onclick = () => startCall({ ...callCtx(), type: 'video' });
+    }
+    if (acceptCallBtn) {
+        acceptCallBtn.onclick = () => {
+            const overlay = document.getElementById('incoming-call-overlay');
+            const type = overlay.dataset.callType || 'voice';
+            const roomId = overlay.dataset.roomId;
+            acceptCall({ ...callCtx(), roomId, type });
+        };
+    }
+    if (declineCallBtn) {
+        declineCallBtn.onclick = () => declineCall({ ...callCtx() });
+    }
+    if (endCallBtnEl) {
+        endCallBtnEl.onclick = () => endCall({ ...callCtx() });
+    }
+    if (muteBtnEl) {
+        muteBtnEl.onclick = () => toggleMute();
+    }
+    if (cameraBtnEl) {
+        cameraBtnEl.onclick = () => toggleCamera();
+    }
+
+    // Listen for incoming calls from partner
+    listenForIncomingCalls({
+        db,
+        currentUser,
+        chatPartner,
+        onIncoming: (data) => {
+            const overlay = document.getElementById('incoming-call-overlay');
+            if (overlay) {
+                overlay.dataset.callType = data.type;
+                overlay.dataset.roomId = data.roomId;
+            }
+            const incomingCallerName = document.getElementById('incoming-caller-name');
+            if (incomingCallerName) incomingCallerName.textContent = data.callerId;
+            const incomingCallType = document.getElementById('incoming-call-type');
+            if (incomingCallType) {
+                incomingCallType.textContent = data.type === 'video'
+                    ? 'Incoming Video Call 📹'
+                    : 'Incoming Voice Call 📞';
+            }
+            overlay.classList.remove('hidden');
+        }
+    });
+    // ─── End Calling Setup ─────────────────────────────────────────────────
 
     // Scroll to newest messages after login (multiple attempts for async Firebase load)
     scheduleScrollToBottom([0, 100, 400, 800, 1200]);
