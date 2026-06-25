@@ -20,6 +20,9 @@
       "imageName": "",
       "contentMode": "center",
       "preventScreenshots": true
+    },
+    "StatusBar": {
+      "overlaysWebView": false
     }
   },
   "server": {
