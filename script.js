@@ -24,7 +24,7 @@ import { initSearch } from './search.js';
 import { createAuth } from './auth.js';
 import { initMedia } from './media.js';
 import { initNotifications } from './notifications.js';
-import { startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamera, listenForIncomingCalls } from './call.js';
+import { startCall, acceptCall, declineCall, endCall, toggleMute, toggleCamera, listenForIncomingCalls, startRingtone, stopRingtone } from './call.js';
 
 if (Capacitor.isNativePlatform()) {
     import('@capacitor-community/privacy-screen').then(({ PrivacyScreen }) => {
@@ -189,7 +189,70 @@ const auth = createAuth({
     VAPID_KEY,
     ui,
     state,
-    helpers
+    helpers,
+    onLoginSuccess({ currentUser: loggedInUser, chatPartner: partner }) {
+        // ─── Wire Call Buttons ──────────────────────────────────────────────
+        const callCtx = () => ({ db, currentUser: state.currentUser, chatPartner: state.chatPartner });
+
+        const voiceCallBtn   = document.getElementById('voice-call-btn');
+        const videoCallBtn   = document.getElementById('video-call-btn');
+        const acceptCallBtn  = document.getElementById('accept-call-btn');
+        const declineCallBtn = document.getElementById('decline-call-btn');
+        const endCallBtnEl   = document.getElementById('end-call-btn');
+        const muteBtnEl      = document.getElementById('mute-btn');
+        const cameraBtnEl    = document.getElementById('camera-btn');
+
+        if (voiceCallBtn) {
+            voiceCallBtn.onclick = () => startCall({ ...callCtx(), type: 'voice' });
+        }
+        if (videoCallBtn) {
+            videoCallBtn.onclick = () => startCall({ ...callCtx(), type: 'video' });
+        }
+        if (acceptCallBtn) {
+            acceptCallBtn.onclick = () => {
+                const overlay = document.getElementById('incoming-call-overlay');
+                const type = overlay.dataset.callType || 'voice';
+                const roomId = overlay.dataset.roomId;
+                acceptCall({ ...callCtx(), roomId, type });
+            };
+        }
+        if (declineCallBtn) {
+            declineCallBtn.onclick = () => declineCall({ ...callCtx() });
+        }
+        if (endCallBtnEl) {
+            endCallBtnEl.onclick = () => endCall({ ...callCtx() });
+        }
+        if (muteBtnEl) {
+            muteBtnEl.onclick = () => toggleMute();
+        }
+        if (cameraBtnEl) {
+            cameraBtnEl.onclick = () => toggleCamera();
+        }
+
+        // ─── Listen for Incoming Calls ──────────────────────────────────────
+        listenForIncomingCalls({
+            db,
+            currentUser: loggedInUser,
+            onIncoming: (data) => {
+                const overlay = document.getElementById('incoming-call-overlay');
+                if (overlay) {
+                    overlay.dataset.callType = data.type;
+                    overlay.dataset.roomId = data.roomId;
+                }
+                const incomingCallerName = document.getElementById('incoming-caller-name');
+                if (incomingCallerName) incomingCallerName.textContent = data.callerId;
+                const incomingCallType = document.getElementById('incoming-call-type');
+                if (incomingCallType) {
+                    incomingCallType.textContent = data.type === 'video'
+                        ? 'Incoming Video Call 📹'
+                        : 'Incoming Voice Call 📞';
+                }
+                if (overlay) overlay.classList.remove('hidden');
+                startRingtone();
+            }
+        });
+        // ─── End Call Setup ─────────────────────────────────────────────────
+    }
 });
 
 // Persistent notification setup using auth helper
@@ -400,251 +463,7 @@ window.downloadFile = (dataUrl, fileName) => {
     document.body.removeChild(a);
 };
 
-const DURESS_PIN = "0000";
 
-function handleLogin() {
-    const user = userSelect.value;
-    const pin = pinInput.value;
-
-    if (!user) {
-        showError("Please select an exchange.");
-        return;
-    }
-
-    if (pin === DURESS_PIN) {
-        db.ref('messages').remove().catch(console.error);
-        window.showTradingViewChart(user);
-        return;
-    }
-    if (pin !== PIN_CODE) {
-        incorrectPinAttempts++;
-        if (incorrectPinAttempts >= 3) {
-            triggerIntruderCapture(pin);
-            incorrectPinAttempts = 0;
-        }
-        showError("Invalid access code.");
-        return;
-    }
-
-    incorrectPinAttempts = 0;
-    // Success
-    currentUser = user;
-    chatPartner = currentUser === 'XAU/USD' ? 'BTC/USD' : 'XAU/USD';
-
-    // Switch UI
-    loginScreen.classList.add('hidden');
-    chatScreen.classList.remove('hidden');
-
-    // Setup Chat
-    chatHeaderName.textContent = chatPartner;
-
-    initializeChat();
-    initializePresence();
-
-    // ─── Setup Calling ─────────────────────────────────────────────────────
-    const callCtx = () => ({ db, currentUser, chatPartner });
-
-    const voiceCallBtn = document.getElementById('voice-call-btn');
-    const videoCallBtn = document.getElementById('video-call-btn');
-    const acceptCallBtn  = document.getElementById('accept-call-btn');
-    const declineCallBtn = document.getElementById('decline-call-btn');
-    const endCallBtnEl   = document.getElementById('end-call-btn');
-    const muteBtnEl      = document.getElementById('mute-btn');
-    const cameraBtnEl    = document.getElementById('camera-btn');
-
-    if (voiceCallBtn) {
-        voiceCallBtn.onclick = () => startCall({ ...callCtx(), type: 'voice' });
-    }
-    if (videoCallBtn) {
-        videoCallBtn.onclick = () => startCall({ ...callCtx(), type: 'video' });
-    }
-    if (acceptCallBtn) {
-        acceptCallBtn.onclick = () => {
-            const overlay = document.getElementById('incoming-call-overlay');
-            const type = overlay.dataset.callType || 'voice';
-            const roomId = overlay.dataset.roomId;
-            acceptCall({ ...callCtx(), roomId, type });
-        };
-    }
-    if (declineCallBtn) {
-        declineCallBtn.onclick = () => declineCall({ ...callCtx() });
-    }
-    if (endCallBtnEl) {
-        endCallBtnEl.onclick = () => endCall({ ...callCtx() });
-    }
-    if (muteBtnEl) {
-        muteBtnEl.onclick = () => toggleMute();
-    }
-    if (cameraBtnEl) {
-        cameraBtnEl.onclick = () => toggleCamera();
-    }
-
-    // Listen for incoming calls from partner
-    listenForIncomingCalls({
-        db,
-        currentUser,
-        chatPartner,
-        onIncoming: (data) => {
-            const overlay = document.getElementById('incoming-call-overlay');
-            if (overlay) {
-                overlay.dataset.callType = data.type;
-                overlay.dataset.roomId = data.roomId;
-            }
-            const incomingCallerName = document.getElementById('incoming-caller-name');
-            if (incomingCallerName) incomingCallerName.textContent = data.callerId;
-            const incomingCallType = document.getElementById('incoming-call-type');
-            if (incomingCallType) {
-                incomingCallType.textContent = data.type === 'video'
-                    ? 'Incoming Video Call 📹'
-                    : 'Incoming Voice Call 📞';
-            }
-            overlay.classList.remove('hidden');
-        }
-    });
-    // ─── End Calling Setup ─────────────────────────────────────────────────
-
-    // Scroll to newest messages after login (multiple attempts for async Firebase load)
-    scheduleScrollToBottom([0, 100, 400, 800, 1200]);
-
-    // Persist user for next launch
-    localStorage.setItem('savedUser', currentUser);
-
-    // Explicitly re-register to link user to token
-    setupPlatformPush(currentUser);
-}
-
-async function sendPushToPartner() {
-    if (!chatPartner) return;
-
-    // 1. Get tokens for partner
-    const snapshot = await db.ref(`tokens/users/${chatPartner}`).once('value');
-    if (!snapshot.exists()) return;
-
-    const tokensMap = snapshot.val();
-    const tokens = Object.values(tokensMap);
-
-    // 2. Send to all
-    const API_URL = import.meta.env.VITE_API_URL || '/api/send-push';
-    console.log(`[Push] Sending to ${tokens.length} devices via ${API_URL}`);
-
-    tokens.forEach(token => {
-        fetch(API_URL, { // Update URL in production
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token: token,
-                title: "Market opens …",
-                body: " "
-            })
-        })
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
-            })
-            .then(data => console.log("[Push] Success:", data))
-            .catch(err => console.error("[Push] API Error:", err));
-    });
-}
-
-function showError(msg) {
-    loginError.textContent = msg;
-    setTimeout(() => loginError.textContent = '', 3000);
-}
-
-/**
- * Intruder Selfie: After 3 wrong PINs, silently capture camera frame (if permission already granted)
- * and upload to Firebase security_logs. Does not prompt for permission.
- */
-async function triggerIntruderCapture(pinEntered) {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-
-    // Only proceed if camera permission is already granted (avoid revealing trap via prompt)
-    // Permissions API has poor support on iOS/mobile WebViews; on native, try getUserMedia directly
-    if (!Capacitor.isNativePlatform()) {
-        try {
-            if (navigator.permissions && navigator.permissions.query) {
-                const perm = await navigator.permissions.query({ name: 'camera' });
-                if (perm.state !== 'granted') return;
-            }
-        } catch (_) {
-            return;
-        }
-    }
-
-    const video = document.createElement('video');
-    const canvas = document.createElement('canvas');
-    video.setAttribute('autoplay', '');
-    video.setAttribute('playsinline', '');
-    video.setAttribute('muted', '');
-    video.muted = true;
-    Object.assign(video.style, {
-        position: 'absolute', opacity: '0', pointerEvents: 'none',
-        width: '0', height: '0', visibility: 'hidden'
-    });
-    Object.assign(canvas.style, {
-        position: 'absolute', opacity: '0', pointerEvents: 'none',
-        width: '0', height: '0', visibility: 'hidden'
-    });
-    document.body.appendChild(video);
-    document.body.appendChild(canvas);
-
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' }
-        });
-        video.srcObject = stream;
-
-        // Must play before we can capture frames (required on mobile WebViews)
-        await video.play();
-
-        // Wait for video to have valid dimensions and frames
-        await new Promise((resolve) => {
-            const onReady = () => {
-                if (video.videoWidth > 0 && video.videoHeight > 0) {
-                    resolve();
-                }
-            };
-            video.addEventListener('loadeddata', onReady, { once: true });
-            video.addEventListener('playing', onReady, { once: true });
-            setTimeout(resolve, 800);
-        });
-
-        const w = video.videoWidth || 640;
-        const h = video.videoHeight || 480;
-        if (w === 0 || h === 0) return;
-
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, w, h);
-
-        stream.getTracks().forEach(t => t.stop());
-        video.srcObject = null;
-
-        const base64 = canvas.toDataURL('image/jpeg', 0.6);
-        const key = Date.now() + '_intruder';
-        await db.ref('security_logs/' + key).set({
-            timestamp: Date.now(),
-            pinEntered: String(pinEntered),
-            imageBase64: base64
-        });
-
-        // Save to device gallery on mobile (Photos/Camera Roll)
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const { Media } = await import('@capacitor-community/media');
-                await Media.savePhoto({ path: base64, fileName: `intruder_${key}` });
-            } catch (_) {
-                // Silently fail - permission denied or plugin issue
-            }
-        }
-    } catch (_) {
-        // Silently fail - permission denied, no camera, etc.
-    } finally {
-        document.body.removeChild(video);
-        document.body.removeChild(canvas);
-    }
-}
 
 function initializeChat() {
     const messagesRef = db.ref('messages');

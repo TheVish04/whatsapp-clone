@@ -2,11 +2,28 @@
 
 const STUN_SERVERS = {
     iceServers: [
+        // ── STUN (NAT discovery) ──────────────────────────────────────────
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        { urls: 'stun:stun3.l.google.com:19302' },
-    ]
+        // ── TURN (relay — required for cross-network/city calls) ──────────
+        {
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+    ],
+    iceCandidatePoolSize: 10
 };
 
 let peerConnection = null;
@@ -45,7 +62,7 @@ const iconCamOff         = document.getElementById('icon-cam-off');
 const muteLabel          = document.getElementById('mute-label');
 
 // ─── Ringtone ────────────────────────────────────────────────────────────────
-function startRingtone() {
+export function startRingtone() {
     try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         const ctx = new AudioCtx();
@@ -70,7 +87,7 @@ function startRingtone() {
     } catch (e) { console.warn('Ringtone error:', e); }
 }
 
-function stopRingtone() {
+export function stopRingtone() {
     if (ringAudio && ringAudio._stop) { ringAudio._stop(); ringAudio = null; }
 }
 
@@ -349,11 +366,11 @@ export function toggleCamera() {
 }
 
 // ─── LISTEN FOR INCOMING CALLS ────────────────────────────────────────────────
-export function listenForIncomingCalls({ db, currentUser, chatPartner, onIncoming }) {
+export function listenForIncomingCalls({ db, currentUser, onIncoming }) {
     const ref = db.ref(`calls/${currentUser}`);
     ref.on('value', (snap) => {
         const data = snap.val();
-        if (data && data.status === 'ringing' && data.callerId === chatPartner) {
+        if (data && data.status === 'ringing') {
             onIncoming(data);
         }
     });

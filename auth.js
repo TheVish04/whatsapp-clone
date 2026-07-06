@@ -14,7 +14,8 @@ export function createAuth({
   VAPID_KEY,
   ui,
   state,
-  helpers
+  helpers,
+  onLoginSuccess
 }) {
   const {
     loginScreen,
@@ -305,6 +306,11 @@ export function createAuth({
     localStorage.setItem('savedUser', state.currentUser);
 
     setupPlatformPush(state.currentUser);
+
+    // Notify script.js that login succeeded so it can wire call handlers
+    if (typeof onLoginSuccess === 'function') {
+      onLoginSuccess({ currentUser: state.currentUser, chatPartner: state.chatPartner });
+    }
   }
 
   function getPublicApi() {
