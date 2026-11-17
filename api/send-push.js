@@ -3,11 +3,17 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin (Only once)
 if (!admin.apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            databaseURL: "https://private-dddb2-default-rtdb.firebaseio.com"
-        });
+        try {
+            const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+            const serviceAccount = typeof raw === 'object' ? raw : JSON.parse(raw);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                databaseURL: "https://private-dddb2-default-rtdb.firebaseio.com"
+            });
+            console.log("Firebase Admin successfully initialized.");
+        } catch (err) {
+            console.error("Error parsing FIREBASE_SERVICE_ACCOUNT:", err.message);
+        }
     } else {
         console.error("Missing FIREBASE_SERVICE_ACCOUNT env var");
     }

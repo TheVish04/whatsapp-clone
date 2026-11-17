@@ -1,0 +1,9 @@
+node_modules
+.git
+.agent
+dist
+android
+.env
+.DS_Store
+*.zip
+*.tar.gz

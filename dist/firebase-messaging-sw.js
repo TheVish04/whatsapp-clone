@@ -32,7 +32,7 @@ messaging.onBackgroundMessage((payload) => {
         body: payload.notification.body,
         icon: payload.notification.icon || '/icon.png', // Fallback icon path
         // Ensure that clicking the notification opens the chat
-        click_action: 'https://whatsapp-clone-v2.vercel.app/' // Or your actual URL
+        click_action: '/' // Open root of deployed application
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
