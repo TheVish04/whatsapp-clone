@@ -37,7 +37,7 @@ app.use((req, res) => {
     }
 });
 
-// Start listening
-app.listen(PORT, '0.0.0.0', () => {
+// Start listening on all interfaces (dual-stack IPv4/IPv6)
+app.listen(PORT, () => {
     console.log(`WhatsApp Clone server running on port ${PORT}`);
 });
